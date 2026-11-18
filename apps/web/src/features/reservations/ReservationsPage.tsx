@@ -166,7 +166,7 @@ export function ReservationsPage() {
           <Empty>{t('res.noResults')}</Empty>
         )}
       </Card>
-      {(creating || editing) && <ReservationForm initial={editing ?? undefined} defaultDate={date} onClose={() => { setEditing(null); set({ new: null }); }} />}
+      {(creating || editing) && <ReservationForm initial={editing ?? undefined} defaultDate={date} defaultGuestId={params.get('guest')} onClose={() => { setEditing(null); set({ new: null, guest: null }); }} />}
       {openId && <ReservationDetail id={openId} onClose={() => set({ open: null })} onEdit={(r) => { set({ open: null }); setEditing(r); }} />}
     </div>
   );

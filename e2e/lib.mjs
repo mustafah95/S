@@ -48,6 +48,8 @@ export function startServer({ databaseUrl, port, dataDir = mkdtempSync(join(tmpd
       SOFIA_WEB_DIR: join(ROOT, 'apps/web/dist'),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
+    // Own process group: tsx starts a child node process, and "server off" must stop the whole tree.
+    detached: true,
   });
   let log = '';
   child.stdout.on('data', (d) => (log += d));
@@ -71,9 +73,13 @@ export function startServer({ databaseUrl, port, dataDir = mkdtempSync(join(tmpd
     log: () => log,
     stop: () =>
       new Promise((res) => {
-        if (child.exitCode !== null) return res();
-        child.once('exit', () => res());
-        child.kill('SIGKILL');
+        if (child.exitCode !== null || child.signalCode !== null) return res();
+        child.once('exit', () => setTimeout(res, 300));
+        try {
+          process.kill(-child.pid, 'SIGKILL');
+        } catch {
+          child.kill('SIGKILL');
+        }
       }),
   };
 }

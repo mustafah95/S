@@ -14,16 +14,17 @@ interface Props {
   initial?: Rec;
   defaultDate: string;
   defaultTableIds?: string[];
+  defaultGuestId?: string | null;
   onClose: () => void;
 }
 
-export function ReservationForm({ initial, defaultDate, defaultTableIds, onClose }: Props) {
+export function ReservationForm({ initial, defaultDate, defaultTableIds, defaultGuestId, onClose }: Props) {
   const { t, i18n } = useTranslation();
   const toast = useToast();
   const online = useOnline();
   const { can } = useApp();
   const { branchId, tz, settings, hours } = useBranchContext();
-  const [guestId, setGuestId] = useState<string | null>(initial?.guestId ?? null);
+  const [guestId, setGuestId] = useState<string | null>(initial?.guestId ?? defaultGuestId ?? null);
   const [guestQuery, setGuestQuery] = useState('');
   const [newGuest, setNewGuest] = useState<{ firstName: string; lastName: string; phone: string; email: string } | null>(null);
   const [date, setDate] = useState<string>(initial?.businessDate ?? defaultDate);
