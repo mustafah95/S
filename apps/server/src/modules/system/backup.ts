@@ -1,12 +1,12 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { createReadStream, existsSync, mkdirSync } from 'node:fs';
-import { copyFile, rm, stat } from 'node:fs/promises';
+import { copyFile, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { APP_VERSION, utcToZoned, parseHHMM } from '@sofia/shared';
 import { config } from '../../config.js';
 import { getDb, q, q1, sql } from '../../db/pool.js';
-import { migrationStatus } from '../../db/migrator.js';
+import { applyRuntimeGrants, migrationStatus } from '../../db/migrator.js';
 import { audit } from '../../lib/audit.js';
 import type { RequestContext } from '../../lib/context.js';
 import { AppError } from '../../lib/errors.js';
@@ -56,7 +56,7 @@ function runPg(tool: 'pg_dump' | 'pg_restore' | 'psql', args: string[], connecti
     let stdout = '';
     child.stderr.on('data', (d) => (stderr += d.toString()));
     child.stdout.on('data', (d) => {
-      if (stdout.length < 1_000_000) stdout += d.toString();
+      if (stdout.length < 20_000_000) stdout += d.toString();
     });
     child.on('error', (err) => reject(new Error(`${tool} could not be started: ${err.message}. Set SOFIA_PG_BIN to the PostgreSQL bin directory.`)));
     child.on('close', (code) => resolve({ code: code ?? 1, stderr: stderr.slice(-4000), stdout }));
@@ -230,8 +230,16 @@ export async function restoreBackup(id: string, ctx: RequestContext, after?: () 
     // over the restore instead of being rewound to the backup's point in time.
     const preserved: Record<string, unknown[]> = {};
     for (const t of PRESERVED_TABLES) preserved[t] = await q(getDb(), sql`SELECT * FROM ${sql.identifier(t)}`);
-    const r = await runPg('pg_restore', ['--clean', '--if-exists', '--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', '--dbname', dbName, b.file_path], config.databaseOwnerUrl);
+    // Extensions (pgcrypto, citext, …) are left in place: the database owner may not own them (e.g. created by a
+    // superuser during installation), and they are identical in the backup anyway.
+    const toc = await runPg('pg_restore', ['--list', b.file_path], config.databaseOwnerUrl);
+    if (toc.code !== 0) throw new Error(`pg_restore --list failed: ${toc.stderr}`);
+    const listFile = join(config.backupDir, `.restore-${id}.list`);
+    await writeFile(listFile, toc.stdout.split('\n').filter((l) => !/\bEXTENSION\b/.test(l)).join('\n'));
+    const r = await runPg('pg_restore', ['--clean', '--if-exists', '--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', '--use-list', listFile, '--dbname', dbName, b.file_path], config.databaseOwnerUrl).finally(() => rm(listFile, { force: true }));
     if (r.code !== 0) throw new Error(`pg_restore failed: ${r.stderr}`);
+    // --no-privileges drops grants: restore the runtime role's access before using the (runtime-role) pool again.
+    if (config.dbAppRole) await applyRuntimeGrants(config.databaseOwnerUrl, config.dbAppRole);
     await getDb().transaction(async (tx) => {
       for (const t of [...PRESERVED_TABLES].reverse()) await tx.execute(sql`DELETE FROM ${sql.identifier(t)}`);
       for (const t of PRESERVED_TABLES) {

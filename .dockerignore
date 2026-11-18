@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+.data
+release
+update-keys
+*.log
+.git
+apps/web/dev-dist
+deploy/.env

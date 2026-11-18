@@ -1,0 +1,21 @@
+# Reverse proxy in front of Sofia. With a real domain in SOFIA_SITE_ADDRESS (e.g. sofia.example.com, DNS pointing
+# to this server, ports 80/443 open) Caddy obtains and renews the TLS certificate automatically.
+# For a LAN-only server use ":80" (plain HTTP on http://SERVER-IP) or "https://sofia.lan { tls internal }"
+# (Caddy's own CA; install its root certificate on staff devices). Offline mode needs HTTPS or localhost.
+{
+	email {$SOFIA_ACME_EMAIL:admin@example.com}
+}
+
+{$SOFIA_SITE_ADDRESS::80} {
+	encode zstd gzip
+	reverse_proxy api:8080 {
+		# Server-Sent Events (live table status) must not be buffered.
+		flush_interval -1
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

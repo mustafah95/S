@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
@@ -158,7 +159,13 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await registerModules(app);
 
   await app.register(swagger, { mode: 'static', specification: { document: buildOpenApi() as never } });
-  await app.register(swaggerUi, { routePrefix: '/api/v1/docs', uiConfig: { docExpansion: 'none' } });
+  // In the bundled release the Swagger UI assets ship next to main.js (see build.mjs).
+  const bundledSwagger = join(dirname(fileURLToPath(import.meta.url)), 'static');
+  await app.register(swaggerUi, {
+    routePrefix: '/api/v1/docs',
+    uiConfig: { docExpansion: 'none' },
+    ...(existsSync(join(bundledSwagger, 'index.html')) ? { baseDir: bundledSwagger } : {}),
+  });
   app.get('/api/v1/openapi.json', async () => buildOpenApi());
 
   // ---- Web application (PWA) ---------------------------------------------------------------------------------
