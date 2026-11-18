@@ -546,7 +546,10 @@ Write-Host '  Sofia is installed and running.' -ForegroundColor Green
 Write-Host ''
 Write-Host "  On this PC:            http://localhost:$Port"
 Write-Host "  Tablets and phones:    $PublicUrl"
-if ($HttpsMode -eq 'Lan') { Write-Host "  Device certificate:    http://$LanIp/sofia-ca.crt  (install once on each tablet/phone)" }
+if ($HttpsMode -eq 'Lan') {
+  Write-Host "  Device certificate:    http://$LanIp/sofia-ca.crt  (install once on each tablet/phone)"
+  if ($caThumb) { Write-Host "  Certificate fingerprint (SHA-1): $caThumb  - compare it when installing on staff PCs" }
+}
 if (-not $setupDone) {
   Write-Host ''
   Write-Host "  First-run setup token: $SetupToken" -ForegroundColor Yellow

@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sofia's Resto-Lounge — دليل التثبيت</title>
+<style>
+  :root {
+    --wine: #6b1420; --wine-dark: #3e0b12; --cream: #f3e6d0; --gold: #c9a26b; --paper: #fbf7f1;
+    --text: #2b1a17; --muted: #6f5f58; --line: #e7dccd; --ok: #2e7d32; --warn: #9a6512;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--text); font: 16px/1.75 "Segoe UI", Tahoma, "Geeza Pro", "Noto Naskh Arabic", Arial, sans-serif; }
+  header { background: linear-gradient(160deg, var(--wine-dark), #1d0508); color: var(--cream); padding: 28px 16px 22px; text-align: center; }
+  header img { width: min(260px, 70%); display: block; margin: 0 auto 10px; }
+  header h1 { margin: 0; font-size: 1.45rem; font-weight: 600; }
+  header p { margin: 4px 0 0; color: var(--gold); font-size: .95rem; }
+  .lang { margin-top: 14px; }
+  .lang button { background: transparent; color: var(--cream); border: 1px solid var(--gold); border-radius: 999px; padding: 6px 16px; font: inherit; cursor: pointer; }
+  main { max-width: 860px; margin: 0 auto; padding: 8px 16px 48px; }
+  section { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin: 18px 0; }
+  h2 { color: var(--wine-dark); font-size: 1.2rem; margin: 0 0 10px; display: flex; gap: 10px; align-items: center; }
+  h2 .n { background: var(--wine); color: var(--cream); width: 30px; height: 30px; border-radius: 50%; display: inline-grid; place-items: center; font-size: .95rem; flex: none; }
+  h3 { color: var(--wine); font-size: 1.02rem; margin: 16px 0 6px; }
+  ol, ul { padding-inline-start: 22px; margin: 6px 0; }
+  li { margin: 4px 0; }
+  code, .path { direction: ltr; unicode-bidi: isolate; font-family: Consolas, "Courier New", monospace; background: #f5eee4; border-radius: 6px; padding: 1px 6px; font-size: .9em; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: .95rem; }
+  th, td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: start; vertical-align: top; }
+  th { color: var(--wine-dark); background: #faf3ea; }
+  .note { border-inline-start: 4px solid var(--gold); background: #fbf4e8; padding: 10px 14px; border-radius: 8px; margin: 10px 0; }
+  .warn { border-inline-start-color: var(--warn); }
+  .ok { border-inline-start-color: var(--ok); }
+  .muted { color: var(--muted); font-size: .92rem; }
+  [hidden] { display: none !important; }
+  @media print { header { background: none; color: var(--wine-dark); } .lang { display: none; } section { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<header>
+  <img src="{{LOGO}}" alt="Sofia's Resto-Lounge">
+  <h1 data-lang="ar">دليل تثبيت نظام صوفيا ريستو-لاونج</h1>
+  <h1 data-lang="en" hidden>Sofia's Resto-Lounge — installation guide</h1>
+  <p>Version {{VERSION}}</p>
+  <div class="lang"><button type="button" id="toggle">English</button></div>
+</header>
+
+<main>
+<!-- ============================================ العربية ============================================ -->
+<div data-lang="ar">
+  <section>
+    <h2>كيف يعمل النظام</h2>
+    <p>يُثبَّت <strong>الخادم</strong> مرة واحدة على حاسوب Windows في المطعم، وعليه قاعدة البيانات PostgreSQL وكل البيانات.
+      أما الأجهزة الأخرى (حاسوب الاستقبال، الأجهزة اللوحية Android، آيفون وآيباد) فتستخدم <strong>نفس التطبيق</strong> عبر المتصفح،
+      وتثبّته على الشاشة الرئيسية ليفتح كتطبيق مستقل.</p>
+    <div class="note ok">بعد أول تسجيل دخول، يستمر كل جهاز بالعمل حتى لو انقطع الخادم أو الإنترنت (حجوزات، ضيوف، ملاحظات، طاولات)،
+      ثم يزامن التغييرات تلقائياً عند عودة الاتصال.</div>
+    <div class="note">لا يوجد تطبيق منفصل في Google Play أو App Store: التطبيق يُثبَّت مباشرة من خادم المطعم، فيعمل نفسه على كل الأجهزة
+      ويصله كل تحديث تلقائياً.</div>
+  </section>
+
+  <section>
+    <h2>محتويات هذا الملف</h2>
+    <table>
+      <tr><th>المجلد</th><th>لأي جهاز</th><th>متى</th></tr>
+      <tr><td><code>1-Server-Windows</code></td><td>حاسوب الخادم في المطعم</td><td>مرة واحدة</td></tr>
+      <tr><td><code>2-Staff-Windows-PC</code></td><td>كل حاسوب موظف يعمل بنظام Windows</td><td>مرة لكل حاسوب</td></tr>
+      <tr><td><code>3-Android</code></td><td>الأجهزة اللوحية والهواتف Android</td><td>مرة لكل جهاز</td></tr>
+      <tr><td><code>4-iPhone-iPad</code></td><td>آيفون وآيباد</td><td>مرة لكل جهاز</td></tr>
+      <tr><td><code>5-Server-Linux-Docker</code></td><td>(اختياري) خادم Linux أو سحابي بدلاً من Windows</td><td>بدلاً من المجلد 1</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="n">1</span>تثبيت الخادم (حاسوب Windows)</h2>
+    <p class="muted">المتطلبات: Windows 10 (إصدار 1809 أو أحدث) أو Windows 11 أو Windows Server 2019 فما فوق، 64-بت، ذاكرة 8 GB يُفضّل،
+      10 GB مساحة فارغة، اتصال إنترنت أثناء التثبيت، وعنوان IP ثابت للحاسوب (اطلب من فني الشبكة حجز العنوان في الراوتر).</p>
+    <ol>
+      <li>افتح المجلد <code>1-Server-Windows\SofiaSetup-{{VERSION}}-windows</code>.</li>
+      <li>انقر مرتين على <code>Install-Sofia.cmd</code> ووافق على صلاحيات المسؤول.</li>
+      <li>انتظر حتى ينتهي (يثبّت Node.js وPostgreSQL تلقائياً إن لم يكونا موجودين — قد يستغرق عدة دقائق).</li>
+      <li>في النهاية يعرض المثبّت ويجب تدوينها:
+        <ul>
+          <li><strong>عنوان الأجهزة</strong> مثل <code>https://192.168.1.10</code></li>
+          <li><strong>رابط شهادة الأجهزة</strong> مثل <code>http://192.168.1.10/sofia-ca.crt</code> و<strong>بصمة الشهادة</strong></li>
+          <li><strong>رمز الإعداد الأول</strong></li>
+        </ul>
+      </li>
+      <li>يُفتح المتصفح على معالج الإعداد: أدخل رمز الإعداد، ثم اسم المطعم والفرع وساعات العمل والصالات والطاولات،
+        وأنشئ حساب المالك بكلمة سر قوية من اختيارك (لا توجد كلمة سر افتراضية).</li>
+    </ol>
+    <p>على سطح المكتب ستجد <strong>Sofia Server Manager</strong>: حالة النظام، تشغيل وإيقاف، نسخ احتياطي واستعادة، السجلات، العنوان وبصمة الشهادة.</p>
+    <div class="note warn">إذا ظهر تحذير «Windows protected your PC» اضغط «More info» ثم «Run anyway» — الملف غير موقّع بشهادة توقيع كود بعد.</div>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span>حواسيب الموظفين (Windows)</h2>
+    <ol>
+      <li>انسخ المجلد <code>2-Staff-Windows-PC</code> إلى الحاسوب وانقر مرتين على <code>Setup-Staff-PC.cmd</code>.</li>
+      <li>اكتب عنوان الخادم (مثل <code>192.168.1.10</code>).</li>
+      <li>تظهر بصمة الشهادة: قارنها بالبصمة في Sofia Server Manager ثم اكتب <code>Y</code> إذا تطابقت.</li>
+      <li>يُنشأ اختصار «Sofia's Resto-Lounge» على سطح المكتب وفي قائمة ابدأ ويُفتح التطبيق.</li>
+      <li>سجّل الدخول مرة واحدة والخادم متصل — بعدها يعمل الحاسوب دون اتصال عند الحاجة.</li>
+    </ol>
+    <p class="muted">بديل يدوي: ثبّت الشهادة يدوياً (افتح الملف ← Install Certificate ← Local Machine ← Trusted Root Certification Authorities)،
+      ثم افتح العنوان في Edge ← القائمة ⋯ ← التطبيقات ← تثبيت هذا الموقع كتطبيق.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span>الأجهزة اللوحية والهواتف Android</h2>
+    <ol>
+      <li>اتصل بشبكة Wi-Fi المطعم.</li>
+      <li>في متصفح <strong>Chrome</strong> افتح <code>http://عنوان-الخادم/sofia-ca.crt</code> — سيُنزَّل ملف الشهادة.</li>
+      <li>افتح الإعدادات ← الأمان والخصوصية ← إعدادات أمان إضافية ← التشفير وبيانات الاعتماد ← تثبيت شهادة ← <strong>شهادة CA</strong> ←
+        «التثبيت على أي حال» ← اختر الملف <code>sofia-ca.crt</code>.
+        <span class="muted">(تختلف الأسماء حسب الشركة المصنّعة؛ ابحث في الإعدادات عن كلمة «شهادة».)</span></li>
+      <li>في Chrome افتح <code>https://عنوان-الخادم</code> وسجّل الدخول.</li>
+      <li>من القائمة ⋮ اختر <strong>تثبيت التطبيق</strong> (أو «إضافة إلى الشاشة الرئيسية»).</li>
+      <li>افتح صوفيا من الشاشة الرئيسية من الآن فصاعداً.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span>آيفون وآيباد</h2>
+    <ol>
+      <li>اتصل بشبكة Wi-Fi المطعم.</li>
+      <li>في متصفح <strong>Safari</strong> تحديداً افتح <code>http://عنوان-الخادم/sofia-ca.crt</code> ← «سماح» ← تظهر رسالة «تم تنزيل ملف التعريف».</li>
+      <li>الإعدادات ← عام ← إدارة VPN والجهاز ← اختر ملف التعريف ← <strong>تثبيت</strong>.</li>
+      <li>الإعدادات ← عام ← حول ← <strong>إعدادات الثقة بالشهادات</strong> ← فعّل الثقة الكاملة للشهادة «Caddy Local Authority».</li>
+      <li>في Safari افتح <code>https://عنوان-الخادم</code> وسجّل الدخول.</li>
+      <li>زر المشاركة ← <strong>إضافة إلى الشاشة الرئيسية</strong> ← إضافة.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2><span class="n">5</span>الضيوف: صفحة الحجز والإشعارات</h2>
+    <ul>
+      <li>رابط الحجز لكل فرع: <code>https://نطاق-المطعم/book/رمز-الفرع</code>. رمز QR وكود الأداة (Widget) لموقع المطعم في الإعدادات ← الفروع.</li>
+      <li>حتى يصل الضيوف من الإنترنت يجب أن يكون للنظام عنوان عام بـ HTTPS (نطاق مثل <code>book.example.com</code> — خيار
+        <code>-HttpsMode Domain</code> عند تثبيت الخادم، أو خادم سحابي من المجلد 5).</li>
+      <li>إشعارات الضيوف: فعّل «push» في الإعدادات ← الإشعارات؛ يضغط الضيف «تفعيل الإشعارات» في صفحة تأكيد حجزه.
+        على آيفون يضيف الضيف الصفحة إلى الشاشة الرئيسية أولاً (iOS 16.4 أو أحدث).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>العمل دون اتصال</h2>
+    <ul>
+      <li>يجب تسجيل الدخول مرة واحدة على كل جهاز والخادم متصل. بعدها يمكن فتح التطبيق دون اتصال لمدة 72 ساعة (قابلة للتعديل).</li>
+      <li>الحجز الذي يُنشأ دون اتصال يظهر برقم يبدأ بـ <code>LOCAL-</code>، ثم يحصل على رقمه النهائي <code>SR-…</code> بعد المزامنة.</li>
+      <li>إذا حُجزت الطاولة نفسها من جهاز آخر أثناء الانقطاع، لا يُحذف الحجز: يُعلَّم «يحتاج مراجعة» ويُنبَّه الموظفون.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>حل المشكلات</h2>
+    <table>
+      <tr><th>المشكلة</th><th>الحل</th></tr>
+      <tr><td>«الاتصال غير خاص» أو تحذير شهادة</td><td>الشهادة غير مثبّتة على الجهاز، أو تم فتح عنوان مختلف عن العنوان المعروض في Server Manager.</td></tr>
+      <tr><td>الأجهزة لا تصل إلى الخادم</td><td>تأكد أن الجهاز على نفس الشبكة، وأن شبكة الخادم مضبوطة على «خاصة» (Private) في إعدادات Windows، وأن عنوان IP للخادم لم يتغير.</td></tr>
+      <tr><td>لا يظهر خيار «تثبيت التطبيق»</td><td>افتح العنوان بـ <code>https://</code> وليس <code>http://</code>.</td></tr>
+      <tr><td>نسيان كلمة السر</td><td>على الخادم في موجه أوامر كمسؤول: <code>C:\Sofia\sofia.cmd user reset-password اسم-المستخدم كلمة-السر-الجديدة</code></td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>لماذا لا يوجد ملف APK أو تطبيق في App Store؟</h2>
+    <p>اخترنا التطبيق عبر المتصفح (PWA) لأنه نسخة واحدة تعمل على Windows وAndroid وآيفون، وتعمل دون اتصال، وتُحدَّث من مركز التحديثات دون إعادة تثبيت على كل جهاز.
+      يمكن لاحقاً تغليفه كتطبيق Android (ملف APK بمفتاح توقيع خاص بالمطعم) أو تطبيق آيفون (يتطلب حاسوب Mac وحساب Apple Developer بـ 99 دولاراً سنوياً ومراجعة Apple).</p>
+    <div class="note warn">ملاحظة: سكربتات Windows (تثبيت الخادم، Server Manager، تجهيز حواسيب الموظفين) لم تُجرَّب بعد على جهاز Windows حقيقي.
+      جرّبها أولاً على حاسوب احتياطي، وأرسل ملف السجل إن ظهر خطأ (يظهر مساره في بداية التثبيت).</div>
+  </section>
+</div>
+
+<!-- ============================================ English ============================================ -->
+<div data-lang="en" hidden>
+  <section>
+    <h2>How it works</h2>
+    <p>The <strong>server</strong> is installed once on a Windows PC in the restaurant; it holds the PostgreSQL database and all data.
+      Every other device (reception PC, Android tablets, iPhone/iPad) uses <strong>the same app</strong> through the browser and installs it
+      to the home screen, where it opens like a normal app.</p>
+    <div class="note ok">After the first sign-in each device keeps working when the server or the internet is down (reservations, guests,
+      notes, tables) and synchronises automatically when the connection returns.</div>
+    <div class="note">There is no separate Google Play or App Store app: the app is installed directly from the restaurant's server, is the
+      same on every device and receives every update automatically.</div>
+  </section>
+
+  <section>
+    <h2>What is in this package</h2>
+    <table>
+      <tr><th>Folder</th><th>Device</th><th>When</th></tr>
+      <tr><td><code>1-Server-Windows</code></td><td>the restaurant server PC</td><td>once</td></tr>
+      <tr><td><code>2-Staff-Windows-PC</code></td><td>each staff PC running Windows</td><td>once per PC</td></tr>
+      <tr><td><code>3-Android</code></td><td>Android tablets and phones</td><td>once per device</td></tr>
+      <tr><td><code>4-iPhone-iPad</code></td><td>iPhone and iPad</td><td>once per device</td></tr>
+      <tr><td><code>5-Server-Linux-Docker</code></td><td>(optional) Linux or cloud server instead of Windows</td><td>instead of folder 1</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="n">1</span>Server (Windows PC)</h2>
+    <p class="muted">Requirements: Windows 10 1809+, Windows 11 or Windows Server 2019+, 64-bit, 8 GB memory recommended, 10 GB free disk,
+      internet during installation, and a fixed IP address for the PC (DHCP reservation in the router).</p>
+    <ol>
+      <li>Open <code>1-Server-Windows\SofiaSetup-{{VERSION}}-windows</code>.</li>
+      <li>Double-click <code>Install-Sofia.cmd</code> and allow administrator rights.</li>
+      <li>Wait until it finishes (Node.js and PostgreSQL are installed automatically when missing; this can take several minutes).</li>
+      <li>Write down what the installer shows at the end: the <strong>device address</strong> (e.g. <code>https://192.168.1.10</code>), the
+        <strong>device certificate link</strong> (<code>http://192.168.1.10/sofia-ca.crt</code>) and its <strong>fingerprint</strong>, and the
+        <strong>setup token</strong>.</li>
+      <li>The browser opens the setup wizard: enter the token, the restaurant, branch, opening hours, areas and tables, and create the owner
+        account with your own strong password (there is no default password).</li>
+    </ol>
+    <p><strong>Sofia Server Manager</strong> (desktop shortcut) shows status, starts/stops services, creates and restores backups, shows logs, the address and the certificate fingerprint.</p>
+    <div class="note warn">If Windows shows "Windows protected your PC", click "More info" → "Run anyway" (the files are not code-signed yet).</div>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span>Staff PCs (Windows)</h2>
+    <ol>
+      <li>Copy <code>2-Staff-Windows-PC</code> to the PC and double-click <code>Setup-Staff-PC.cmd</code>.</li>
+      <li>Enter the server address (e.g. <code>192.168.1.10</code>).</li>
+      <li>Compare the certificate fingerprint with the one in Sofia Server Manager and type <code>Y</code> if they match.</li>
+      <li>A "Sofia's Resto-Lounge" shortcut is created on the desktop and in the Start menu, and the app opens.</li>
+      <li>Sign in once while the server is reachable; afterwards the PC also works offline.</li>
+    </ol>
+    <p class="muted">Manually: install the certificate (open the file → Install Certificate → Local Machine → Trusted Root Certification Authorities),
+      then open the address in Edge → ⋯ menu → Apps → Install this site as an app.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span>Android tablets and phones</h2>
+    <ol>
+      <li>Connect to the restaurant Wi-Fi.</li>
+      <li>In <strong>Chrome</strong> open <code>http://SERVER-ADDRESS/sofia-ca.crt</code>; the certificate file downloads.</li>
+      <li>Settings → Security &amp; privacy → More security settings → Encryption &amp; credentials → Install a certificate → <strong>CA certificate</strong>
+        → Install anyway → choose <code>sofia-ca.crt</code>. <span class="muted">(Names differ by manufacturer; search Settings for "certificate".)</span></li>
+      <li>In Chrome open <code>https://SERVER-ADDRESS</code> and sign in.</li>
+      <li>⋮ menu → <strong>Install app</strong> (or Add to Home screen).</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span>iPhone and iPad</h2>
+    <ol>
+      <li>Connect to the restaurant Wi-Fi.</li>
+      <li>In <strong>Safari</strong> open <code>http://SERVER-ADDRESS/sofia-ca.crt</code> → Allow → "Profile Downloaded".</li>
+      <li>Settings → General → VPN &amp; Device Management → the profile → <strong>Install</strong>.</li>
+      <li>Settings → General → About → <strong>Certificate Trust Settings</strong> → enable full trust for "Caddy Local Authority".</li>
+      <li>In Safari open <code>https://SERVER-ADDRESS</code> and sign in.</li>
+      <li>Share → <strong>Add to Home Screen</strong> → Add.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2><span class="n">5</span>Guests: booking page and notifications</h2>
+    <ul>
+      <li>Booking link per branch: <code>https://YOUR-DOMAIN/book/BRANCH-CODE</code>; QR code and website widget code in Settings → Branches.</li>
+      <li>Guests on the internet need a public HTTPS address (a domain with <code>-HttpsMode Domain</code>, or a cloud server from folder 5).</li>
+      <li>Guest notifications: enable "push" in Settings → Notifications; guests tap "Turn on notifications" on their confirmation page
+        (on iPhone they add the page to the Home Screen first, iOS 16.4+).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Working offline</h2>
+    <ul>
+      <li>Sign in once on each device while the server is reachable; afterwards the app opens offline for 72 hours (configurable).</li>
+      <li>Reservations made offline show a <code>LOCAL-</code> number until they sync and receive their <code>SR-…</code> number.</li>
+      <li>If the same table was booked by another device meanwhile, nothing is deleted: the booking is flagged for review and staff are notified.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Troubleshooting</h2>
+    <table>
+      <tr><th>Problem</th><th>Solution</th></tr>
+      <tr><td>"Your connection is not private"</td><td>The certificate is not installed on the device, or a different address than the one in Server Manager was opened.</td></tr>
+      <tr><td>Devices cannot reach the server</td><td>Same network? Server network set to Private in Windows settings? Did the server IP change?</td></tr>
+      <tr><td>No "Install app" option</td><td>Open the address with <code>https://</code>, not <code>http://</code>.</td></tr>
+      <tr><td>Forgotten password</td><td>On the server, in an administrator prompt: <code>C:\Sofia\sofia.cmd user reset-password USER NEW-PASSWORD</code></td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Why no APK or App Store app?</h2>
+    <p>The app is a Progressive Web App: one version for Windows, Android and iPhone that works offline and is updated by the Update Center
+      without reinstalling on every device. It can later be wrapped as an Android app (APK signed with the restaurant's key) or an iOS app
+      (requires a Mac, an Apple Developer account at US$99/year and Apple review).</p>
+    <div class="note warn">The Windows scripts (server installer, Server Manager, staff PC setup) have not yet been run on a real Windows machine.
+      Try them on a spare PC first and send the log file if something fails (its path is shown when the installation starts).</div>
+  </section>
+</div>
+</main>
+
+<script>
+  (function () {
+    var btn = document.getElementById('toggle');
+    function show(lang) {
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+      document.querySelectorAll('[data-lang]').forEach(function (el) { el.hidden = el.getAttribute('data-lang') !== lang; });
+      btn.textContent = lang === 'ar' ? 'English' : 'العربية';
+    }
+    btn.addEventListener('click', function () { show(document.documentElement.lang === 'ar' ? 'en' : 'ar'); });
+  })();
+</script>
+</body>
+</html>

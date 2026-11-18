@@ -311,7 +311,9 @@ Add-Button 'logsFolder' $false { Start-Process explorer.exe $LogDir }
 if ($install.httpsMode -eq 'Lan') {
   Add-Button 'certificate' $false {
     $certUrl = "http://$($install.lanIp)/sofia-ca.crt"
-    [System.Windows.Forms.MessageBox]::Show($form, ((T 'certHelp') -f $certUrl, (Get-LanUrl)), (T 'certificate'), 'OK', 'Information') | Out-Null
+    $text = (T 'certHelp') -f $certUrl, (Get-LanUrl)
+    if ($install.PSObject.Properties['caThumbprint'] -and $install.caThumbprint) { $text += "`n`nSHA-1: $($install.caThumbprint)" }
+    [System.Windows.Forms.MessageBox]::Show($form, $text, (T 'certificate'), 'OK', 'Information') | Out-Null
   }
 }
 foreach ($k in 'openApp', 'copyUrl', 'backupsFolder', 'viewLogs', 'logsFolder', 'certificate') { if ($buttonMap.Contains($k)) { $buttonMap[$k].Tag = 'always' } }

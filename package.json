@@ -20,7 +20,8 @@
     "release:build": "node scripts/build-release.mjs",
     "release:keys": "node scripts/gen-update-keys.mjs",
     "release:sign": "node scripts/sign-release.mjs",
-    "release:windows": "node scripts/build-windows-bundle.mjs"
+    "release:windows": "node scripts/build-windows-bundle.mjs",
+    "release:all": "node scripts/build-all-platforms.mjs"
   },
   "devDependencies": {
     "typescript": "5.9.3"
