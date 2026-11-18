@@ -16,6 +16,9 @@ import { logEvent, notifyStaff } from '../../lib/system-events.js';
 
 export type BackupKind = 'scheduled' | 'manual' | 'pre_update' | 'pre_restore';
 
+/** Tables whose rows survive a restore (they describe the server's own history, not business data). Parent first. */
+const PRESERVED_TABLES = ['backups', 'system_updates'] as const;
+
 export interface BackupRecord {
   id: string;
   file_name: string;
@@ -217,11 +220,24 @@ export async function restoreBackup(id: string, ctx: RequestContext, after?: () 
   try {
     const dbName = new URL(config.databaseOwnerUrl).pathname.replace(/^\//, '');
     const [{ hwm }] = (await q<{ hwm: number }>(getDb(), sql`SELECT CASE WHEN is_called THEN last_value ELSE 0 END AS hwm FROM sofia_sync_seq`)) as [{ hwm: number }];
+    // Maintenance mode already blocks new writes; only sessions stuck inside a transaction could block the
+    // restore's locks, so those (and only those) are terminated. Idle pooled connections stay usable.
     await getDb().execute(sql`SELECT pg_terminate_backend(pid) FROM pg_stat_activity
-                              WHERE datname = ${dbName} AND pid <> pg_backend_pid() AND application_name LIKE 'sofia-%'
-                                AND application_name NOT IN ('sofia-migrator')`).catch(() => undefined);
+                              WHERE datname = ${dbName} AND pid <> pg_backend_pid()
+                                AND state IN ('idle in transaction', 'idle in transaction (aborted)')
+                                AND state_change < now() - interval '30 seconds'`).catch(() => undefined);
+    // Operational history (backup catalogue, update history) must describe what really happened, so it is carried
+    // over the restore instead of being rewound to the backup's point in time.
+    const preserved: Record<string, unknown[]> = {};
+    for (const t of PRESERVED_TABLES) preserved[t] = await q(getDb(), sql`SELECT * FROM ${sql.identifier(t)}`);
     const r = await runPg('pg_restore', ['--clean', '--if-exists', '--no-owner', '--no-privileges', '--single-transaction', '--exit-on-error', '--dbname', dbName, b.file_path], config.databaseOwnerUrl);
     if (r.code !== 0) throw new Error(`pg_restore failed: ${r.stderr}`);
+    await getDb().transaction(async (tx) => {
+      for (const t of [...PRESERVED_TABLES].reverse()) await tx.execute(sql`DELETE FROM ${sql.identifier(t)}`);
+      for (const t of PRESERVED_TABLES) {
+        await tx.execute(sql`INSERT INTO ${sql.identifier(t)} SELECT * FROM json_populate_recordset(NULL::${sql.identifier(t)}, ${JSON.stringify(preserved[t])}::json)`);
+      }
+    });
     // The change feed must never move backwards (devices hold cursors), and devices must rebuild their local copy.
     await getDb().execute(sql`SELECT setval('sofia_sync_seq', greatest(${hwm}::bigint + 1, (SELECT last_value FROM sofia_sync_seq)))`);
     await putSetting(getDb(), { requestId: 'restore', ip: '127.0.0.1', system: 'restore' }, 'system.epoch', { epoch: randomBytes(8).toString('hex') });

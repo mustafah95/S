@@ -126,7 +126,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   defineRoute(app, { method: 'GET', url: '/api/v1/updates/status', summary: 'Update Center: versions, release notes, migrations, backups, pending job', tags: ['Updates'], permission: ['system.update', 'system.health'], allowInMaintenance: true }, async () => {
     const state = await getSetting('system.update');
     const migrations = await migrationStatus(config.databaseOwnerUrl, config.migrationsDir);
-    const lastBackup = await q1(db, sql`SELECT id, file_name AS "fileName", finished_at AS "finishedAt", kind FROM backups WHERE status = 'completed' ORDER BY finished_at DESC LIMIT 1`);
+    const lastBackup = await q1(db, sql`SELECT id, file_name AS "fileName", finished_at AS "finishedAt", kind FROM backups WHERE status = 'completed' ORDER BY finished_at DESC NULLS LAST LIMIT 1`);
     const job = await q1(db, sql`SELECT * FROM system_updates WHERE status NOT IN ('completed', 'failed', 'rolled_back') ORDER BY started_at DESC LIMIT 1`);
     const latest = state.latest as unknown as ReleaseEntry | null;
     const pointer = readCurrent(installRoot());

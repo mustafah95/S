@@ -69,7 +69,7 @@ export async function healthReport(): Promise<{ status: 'ok' | 'degraded' | 'dow
   checks.sync = { status: (sync?.open ?? 0) > 0 ? 'warn' : 'ok', openConflicts: sync?.open ?? 0, rejected24h: sync?.rejected ?? 0, lastOperationAt: sync?.last ?? null };
 
   const backupSettings = await getSetting('backup');
-  const last = await q1<{ finished_at: Date; status: string }>(db, sql`SELECT finished_at, status FROM backups WHERE status = 'completed' ORDER BY finished_at DESC LIMIT 1`);
+  const last = await q1<{ finished_at: Date; status: string }>(db, sql`SELECT finished_at, status FROM backups WHERE status = 'completed' ORDER BY finished_at DESC NULLS LAST LIMIT 1`);
   const lastFailed = await q1<{ started_at: Date; error: string }>(db, sql`SELECT started_at, error FROM backups WHERE status = 'failed' ORDER BY started_at DESC LIMIT 1`);
   const ageH = last ? (Date.now() - new Date(last.finished_at).getTime()) / 3600_000 : null;
   const maxAge = backupSettings.frequency === 'weekly' ? 7 * 24 + 2 : backupSettings.frequency === 'daily' ? 26 : 14;
