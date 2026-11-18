@@ -11,6 +11,9 @@ import { reservationSettingsOf } from '../modules/venue.js';
 import { createBackup, pruneBackups, scheduledBackupDue } from '../modules/system/backup.js';
 import { anonymizeGuest } from '../modules/guests/service.js';
 import { utcToZoned } from '@sofia/shared';
+import { pollDueConnections } from '../modules/pos.js';
+import { sendDueCampaigns } from '../modules/marketing/routes.js';
+import { birthdayPoints, expireInactivePoints } from '../modules/loyalty.js';
 
 /**
  * Background worker. Queue processing (notification outbox) is safe in any number of processes (SKIP LOCKED);
@@ -158,6 +161,10 @@ export async function startWorker(): Promise<() => Promise<void>> {
     { name: 'birthday', everyMs: 3_600_000, leaderOnly: true, run: birthdayGreetings },
     { name: 'retention', everyMs: 24 * 3_600_000, leaderOnly: true, run: dataRetention },
     { name: 'backup', everyMs: 60_000, leaderOnly: true, run: scheduledBackup },
+    { name: 'pos-poll', everyMs: 60_000, leaderOnly: true, run: pollDueConnections },
+    { name: 'campaigns', everyMs: 60_000, leaderOnly: true, run: sendDueCampaigns },
+    { name: 'loyalty-birthday', everyMs: 3_600_000, leaderOnly: true, run: () => birthdayPoints(ctx) },
+    { name: 'loyalty-expiry', everyMs: 24 * 3_600_000, leaderOnly: true, run: () => expireInactivePoints(ctx) },
     ...extraJobs,
   ];
 

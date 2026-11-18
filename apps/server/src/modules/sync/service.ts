@@ -1,5 +1,5 @@
 import { and, eq, gt, isNull, lte, sql as dsql } from 'drizzle-orm';
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 import {
   GUEST_CRITICAL_FIELDS,
   GUEST_SET_FIELDS,
@@ -394,7 +394,12 @@ export async function processPush(ctx: RequestContext, deviceId: string, ops: Sy
         return r;
       });
     } catch (err) {
-      const e = err instanceof AppError ? err : fromPgError(err);
+      const e =
+        err instanceof AppError
+          ? err
+          : err instanceof ZodError
+            ? new AppError(422, 'validation_error', err.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; '))
+            : fromPgError(err);
       if (!e || e.status >= 500) {
         await logEvent('error', 'sync', `Sync operation failed (will retry): ${(err as Error).message}`, { opId: op.opId, entityType: op.entityType });
         results.push({ ...base, status: 'retry', error: { code: 'server_error', message: 'Temporary server error — will retry automatically' } });

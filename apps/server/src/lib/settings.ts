@@ -75,6 +75,7 @@ const updateStateSchema = z.object({
 });
 
 const epochSchema = z.object({ epoch: z.string().default('') });
+const loyaltySettingsSchema = z.object({ enabled: z.boolean().default(true), pointsExpiryMonths: z.number().int().min(0).max(120).default(0) });
 
 export const SETTINGS = {
   branding: { schema: brandingSchema, defaults: DEFAULT_BRANDING, permission: 'settings.manage' },
@@ -86,6 +87,7 @@ export const SETTINGS = {
     defaults: DEFAULT_NOTIFICATION_SETTINGS,
     permission: 'notifications.manage',
   },
+  loyalty: { schema: loyaltySettingsSchema, defaults: loyaltySettingsSchema.parse({}), permission: 'loyalty.configure' },
   'integrations.whatsapp': { schema: whatsappSchema, defaults: whatsappSchema.parse({}), permission: 'integrations.manage' },
   'integrations.email': { schema: emailSchema, defaults: emailSchema.parse({}), permission: 'integrations.manage' },
   'integrations.sms': { schema: smsSchema, defaults: smsSchema.parse({}), permission: 'integrations.manage' },
@@ -100,7 +102,7 @@ export const SETTINGS = {
 export type SettingKey = keyof typeof SETTINGS;
 export type SettingValue<K extends SettingKey> = z.infer<(typeof SETTINGS)[K]['schema']>;
 /** Settings any signed-in user may read (needed by the PWA, also offline). */
-export const CLIENT_READABLE: SettingKey[] = ['branding', 'general', 'guests', 'notifications'];
+export const CLIENT_READABLE: SettingKey[] = ['branding', 'general', 'guests', 'notifications', 'loyalty'];
 
 const cache = new Map<string, { value: unknown; at: number }>();
 const TTL_MS = 5_000;

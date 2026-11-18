@@ -1,5 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { registerEventRoutes } from './events.js';
+import { registerAnalyticsRoutes } from './analytics.js';
+import { registerFeedbackRoutes } from './feedback.js';
+import { registerLoyaltyRoutes } from './loyalty.js';
+import { registerMarketingRoutes } from './marketing/routes.js';
+import { registerPosRoutes } from './pos.js';
+import { registerPublicRoutes } from './public.js';
+import { registerReportRoutes } from './reports.js';
 import { registerExportRoutes } from './export.js';
 import { registerSystemRoutes } from './system/routes.js';
 import { registerGuestRoutes } from './guests/routes.js';
@@ -28,4 +35,11 @@ export async function registerModules(app: FastifyInstance): Promise<void> {
   await registerEventRoutes(app);
   await registerSystemRoutes(app);
   await registerExportRoutes(app);
+  await registerLoyaltyRoutes(app);
+  await registerPosRoutes(app);
+  await registerMarketingRoutes(app);
+  await registerFeedbackRoutes(app);
+  await registerAnalyticsRoutes(app);
+  await registerReportRoutes(app);
+  await registerPublicRoutes(app);
 }

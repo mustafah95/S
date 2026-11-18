@@ -66,6 +66,18 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     allowList: (req) => req.url.startsWith('/assets/') || req.url === '/health/live',
   });
   await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024, files: 1 } });
+  // Keep the raw JSON body: webhooks (POS, WhatsApp) verify HMAC signatures over the exact bytes received.
+  app.removeContentTypeParser('application/json');
+  app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (req, body, done) => {
+    (req as unknown as { rawBody?: Buffer }).rawBody = body as Buffer;
+    if (!(body as Buffer).length) return done(null, {});
+    try {
+      done(null, JSON.parse((body as Buffer).toString('utf8')));
+    } catch (err) {
+      (err as { statusCode?: number }).statusCode = 400;
+      done(err as Error, undefined);
+    }
+  });
 
   // ---- request context, authentication, CSRF, maintenance --------------------------------------------------
   app.decorateRequest('ctx', null as unknown as RequestContext);
@@ -128,7 +140,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     else e = fromPgError(err);
     const statusFromFastify = (err as { statusCode?: number }).statusCode;
     if (!e && statusFromFastify && statusFromFastify < 500) {
-      e = new AppError(statusFromFastify, statusFromFastify === 429 ? 'rate_limited' : (err.code ?? 'request_error'), err.message);
+      e = new AppError(statusFromFastify, statusFromFastify === 429 ? 'rate_limited' : ((err as { code?: string }).code ?? 'request_error'), err.message);
     }
     if (!e) {
       req.log.error({ err }, 'Unhandled error');

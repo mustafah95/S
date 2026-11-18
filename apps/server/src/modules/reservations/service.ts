@@ -30,6 +30,7 @@ import { notifyStaff } from '../../lib/system-events.js';
 import { createGuest, refreshGuestStats } from '../guests/service.js';
 import { getBranch, getClosures, reservationSettingsOf } from '../venue.js';
 import { queueReservationMessage } from '../notifications/service.js';
+import { earnForVisit } from '../loyalty.js';
 
 export type ReservationRow = typeof schema.reservations.$inferSelect;
 type Branch = typeof schema.branches.$inferSelect;
@@ -552,6 +553,7 @@ export async function transitionReservation(
   await audit(tx, ctx, { action: `reservation.${action}`, entityType: 'reservation', entityId: id, branchId: before.branchId, before, after });
   await refreshGuestStats(tx, after!.guestId);
 
+  if (target === 'completed') await earnForVisit(tx, ctx, after!);
   if (target === 'confirmed') await queueReservationMessage(tx, 'reservation_confirmation', after!);
   if (target === 'cancelled') await queueReservationMessage(tx, 'reservation_cancelled', after!);
   if ((target === 'checked_in' || target === 'seated') && !before.checkedInAt && after!.guestId) {
