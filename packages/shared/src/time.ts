@@ -121,3 +121,17 @@ export function isValidTimeZone(tz: string): boolean {
     return false;
   }
 }
+
+/**
+ * A business day starts at 05:00 local time: a 00:30 reservation on business date D happens on calendar day D+1.
+ */
+export const BUSINESS_DAY_START_MINUTES = 5 * 60;
+
+export function businessToUtc(date: string, time: string, timeZone: string): Date {
+  const calendarDate = parseHHMM(time) < BUSINESS_DAY_START_MINUTES ? addDays(date, 1) : date;
+  return zonedToUtc(calendarDate, time, timeZone);
+}
+
+export function businessDateOf(instant: Date, timeZone: string): string {
+  return utcToZoned(new Date(instant.getTime() - BUSINESS_DAY_START_MINUTES * 60_000), timeZone).date;
+}

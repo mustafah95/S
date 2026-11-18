@@ -49,7 +49,8 @@ export const syncPushSchema = z.object({
 });
 export type SyncPushRequest = z.infer<typeof syncPushSchema>;
 
-export type SyncOpResultStatus = 'applied' | 'duplicate' | 'conflict' | 'rejected' | 'requires_review';
+/** 'retry' = transient server error: the op stays queued and later ops in the batch are not processed (order is kept). */
+export type SyncOpResultStatus = 'applied' | 'duplicate' | 'conflict' | 'rejected' | 'requires_review' | 'retry';
 
 export interface SyncOpResult {
   opId: string;
@@ -74,6 +75,8 @@ export interface SyncPushResponse {
 
 export interface SyncPullResponse {
   serverTime: string;
+  /** Changes when the server database is restored from a backup — devices then rebuild their local copy. */
+  epoch: string;
   cursor: string;
   hasMore: boolean;
   changes: Partial<Record<SyncPullEntity, Record<string, unknown>[]>>;

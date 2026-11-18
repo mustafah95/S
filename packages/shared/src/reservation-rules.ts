@@ -185,3 +185,174 @@ export function generateReservationCode(prefix = 'SR'): string {
   for (const b of bytes) out += CODE_ALPHABET[b % CODE_ALPHABET.length];
   return `${prefix}-${out}`;
 }
+
+export interface TableStatusInput {
+  id: string;
+  manualStatus: string;
+  manualStatusUntil?: string | Date | null;
+  isActive?: boolean;
+}
+
+export interface ReservationForStatus {
+  id: string;
+  status: ReservationStatus;
+  startAt: string | Date;
+  endAt: string | Date;
+  tableIds: string[];
+}
+
+export interface EffectiveTableStatus<R extends ReservationForStatus = ReservationForStatus> {
+  status: 'available' | 'reserved' | 'occupied' | 'cleaning' | 'blocked' | 'maintenance';
+  current?: R;
+  next?: R;
+}
+
+/**
+ * Live status of a table, derived identically on the server and on offline devices:
+ * manual states (cleaning / blocked / maintenance) win while they last; otherwise a seated party makes the table
+ * occupied, an upcoming reservation within `lookaheadMinutes` makes it reserved.
+ */
+export function effectiveTableStatus<R extends ReservationForStatus>(
+  table: TableStatusInput,
+  reservations: R[],
+  now: Date = new Date(),
+  lookaheadMinutes = 90,
+): EffectiveTableStatus<R> {
+  const t = now.getTime();
+  const mine = reservations
+    .filter((r) => r.tableIds.includes(table.id))
+    .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+  const current = mine.find((r) => r.status === 'seated' || r.status === 'dining');
+  const next = mine.find(
+    (r) =>
+      ['pending', 'confirmed', 'checked_in'].includes(r.status) &&
+      new Date(r.endAt).getTime() > t &&
+      new Date(r.startAt).getTime() - t <= lookaheadMinutes * 60_000,
+  );
+  const manualActive =
+    table.manualStatus !== 'available' &&
+    (!table.manualStatusUntil || new Date(table.manualStatusUntil).getTime() > t);
+  if (manualActive) return { status: table.manualStatus as EffectiveTableStatus['status'], current, next };
+  if (current) return { status: 'occupied', current, next };
+  if (next) return { status: 'reserved', next };
+  return { status: 'available' };
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Table assignment (pure — used by the server engine and by offline devices for local warnings)
+// ---------------------------------------------------------------------------------------------------------
+
+export interface TableForPick {
+  id: string;
+  areaId: string;
+  label: string;
+  capacity: number;
+  minCapacity: number;
+  maxCapacity: number;
+  isVip: boolean;
+  isActive: boolean;
+  bookableOnline: boolean;
+  combinable: boolean;
+  manualStatus: string;
+  manualStatusUntil?: string | Date | null;
+  deletedAt?: string | Date | null;
+}
+
+export interface ComboForPick {
+  id: string;
+  tableIds: string[];
+  minCapacity: number;
+  maxCapacity: number;
+  isActive: boolean;
+}
+
+export interface AllocationForPick {
+  tableId: string;
+  /** epoch ms, inclusive */
+  start: number;
+  /** epoch ms, exclusive (includes turnover buffer) */
+  end: number;
+  reservationId?: string | null;
+}
+
+export interface PickOptions {
+  areaId?: string | null;
+  /** Public booking: only tables bookable online. */
+  onlineOnly?: boolean;
+  /** Keep VIP tables for guests at or above this rank (see VIP_RANK); undefined = no restriction. */
+  allowVipTables?: boolean;
+  excludeReservationId?: string | null;
+  now?: number;
+}
+
+export function isTableFree(
+  table: TableForPick,
+  allocations: AllocationForPick[],
+  start: number,
+  end: number,
+  opts: PickOptions = {},
+): boolean {
+  if (!table.isActive || table.deletedAt) return false;
+  if (opts.onlineOnly && !table.bookableOnline) return false;
+  const now = opts.now ?? Date.now();
+  const until = table.manualStatusUntil ? new Date(table.manualStatusUntil).getTime() : null;
+  if (table.manualStatus === 'blocked' || table.manualStatus === 'maintenance') {
+    if (until === null || until > start) return false;
+  }
+  if (table.manualStatus === 'cleaning' && start < now + 20 * 60_000 && (until === null || until > start)) return false;
+  return !allocations.some(
+    (a) => a.tableId === table.id && a.reservationId !== opts.excludeReservationId && a.start < end && start < a.end,
+  );
+}
+
+/**
+ * Choose tables for a party: the smallest single table that fits (preferring the requested area and keeping VIP
+ * tables free), otherwise the smallest free predefined combination. Returns null when nothing fits.
+ */
+export function pickTables(
+  tables: TableForPick[],
+  combos: ComboForPick[],
+  allocations: AllocationForPick[],
+  start: number,
+  end: number,
+  partySize: number,
+  opts: PickOptions = {},
+): { tableIds: string[]; combinationId?: string } | null {
+  const usable = tables.filter(
+    (t) => isTableFree(t, allocations, start, end, opts) && (opts.allowVipTables !== false || !t.isVip),
+  );
+  const singles = usable
+    .filter((t) => t.minCapacity <= partySize && partySize <= t.maxCapacity)
+    .sort(
+      (a, b) =>
+        Number(opts.areaId ? a.areaId !== opts.areaId : 0) - Number(opts.areaId ? b.areaId !== opts.areaId : 0) ||
+        a.maxCapacity - b.maxCapacity ||
+        Number(a.isVip) - Number(b.isVip) ||
+        a.label.localeCompare(b.label, undefined, { numeric: true }),
+    );
+  const areaFilter = (t: TableForPick) => !opts.areaId || t.areaId === opts.areaId;
+  const bestSingle = singles.find(areaFilter) ?? (opts.areaId ? undefined : singles[0]);
+  if (bestSingle) return { tableIds: [bestSingle.id] };
+  const usableIds = new Set(usable.filter((t) => t.combinable).map((t) => t.id));
+  const byId = new Map(tables.map((t) => [t.id, t]));
+  const combo = combos
+    .filter(
+      (c) =>
+        c.isActive &&
+        c.minCapacity <= partySize &&
+        partySize <= c.maxCapacity &&
+        c.tableIds.every((id) => usableIds.has(id)) &&
+        (!opts.areaId || c.tableIds.every((id) => byId.get(id)?.areaId === opts.areaId)),
+    )
+    .sort((a, b) => a.maxCapacity - b.maxCapacity)[0];
+  if (combo) return { tableIds: [...combo.tableIds], combinationId: combo.id };
+  return null;
+}
+
+/** Combined seating capacity of several tables (T1 + T2 …). */
+export function combinedCapacity(tables: Pick<TableForPick, 'maxCapacity' | 'minCapacity'>[]): { min: number; max: number } {
+  return {
+    min: tables.reduce((s, t) => Math.max(s, t.minCapacity), 0),
+    max: tables.reduce((s, t) => s + t.maxCapacity, 0),
+  };
+}
