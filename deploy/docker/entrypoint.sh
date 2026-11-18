@@ -22,4 +22,6 @@ fi
 if [ -n "${SOFIA_UPDATE_PUBLIC_KEY_FILE:-}" ] && [ -f "$SOFIA_UPDATE_PUBLIC_KEY_FILE" ]; then
   cp "$SOFIA_UPDATE_PUBLIC_KEY_FILE" "$ROOT/config/update-public-key.pem"
 fi
-exec node "$ROOT/releases/$VER/launcher.mjs" "$@"
+# A stable path for administration: docker compose exec api node /opt/sofia/launcher.mjs cli <command>
+cp "$ROOT/releases/$VER/launcher.mjs" "$ROOT/launcher.mjs.tmp.$$" && mv "$ROOT/launcher.mjs.tmp.$$" "$ROOT/launcher.mjs"
+exec node "$ROOT/launcher.mjs" "$@"

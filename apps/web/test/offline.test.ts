@@ -16,7 +16,7 @@ beforeEach(async () => {
 
 describe('local-first repository', () => {
   it('writes the record and its outbox operation in one step (offline-safe)', async () => {
-    const g = await createGuest({ firstName: 'Noor', phone: '0770 123 4567' });
+    const g = await createGuest({ firstName: 'Noor', phone: '0770 123 4567', email: null });
     const local = await db.guests.get(g.id);
     expect(local).toMatchObject({ firstName: 'Noor', phoneNormalized: '+9647701234567', _local: true, _pending: 1 });
     const ops = await db.outbox.toArray();
@@ -25,7 +25,7 @@ describe('local-first repository', () => {
   });
 
   it('computes reservation times locally and queues the API payload', async () => {
-    const g = await createGuest({ firstName: 'Layla' });
+    const g = await createGuest({ firstName: 'Layla', email: null });
     const r = await createReservation({ branchId, guestId: g.id, date: '2026-11-20', time: '00:30', partySize: 2, source: 'phone', autoAssignTable: false, overrideHours: false });
     expect(r.code).toMatch(/^LOCAL-/);
     // 00:30 belongs to the business day of the 20th → calendar 21st, Baghdad UTC+3

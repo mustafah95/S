@@ -478,11 +478,16 @@ maintenance mode → `pg_restore --clean --if-exists --single-transaction` → m
 
 | Option | Topology |
 |--------|----------|
-| **A. Dedicated Linux server / C. Cloud VM** | Docker Compose: `postgres` (internal network only, no published port), `api`, `worker`, `updater`, `caddy` (80/443). Volumes: `pgdata`, `backups`, `sofia-data` (releases, uploads, updates), `caddy-data`. |
-| **B. Windows PC / laptop as restaurant server** | `Install-Sofia.ps1`: PostgreSQL 16 service bound to localhost, Node.js 22, Sofia release in `C:\Sofia\releases`, WinSW services *SofiaAPI*, *SofiaWorker*, *SofiaUpdater* (+ optional *SofiaCaddy* for HTTPS), automatic start, firewall rule for the private network, **Sofia Server Manager** GUI. |
+| **A. Dedicated Linux server / C. Cloud VM** | Docker Compose (`deploy/docker-compose.yml`): `postgres` (internal `backend` network only, no published port), `api`, `worker`, `updater` (same image, launcher roles), `caddy` (80/443, automatic HTTPS). Volumes: `pgdata`, `sofia` (releases, backups, uploads, config), `caddy_data`. |
+| **B. Windows PC / laptop as restaurant server** | `deploy/windows/Install-Sofia.ps1`: PostgreSQL 16 service bound to localhost (port blocked in the firewall), Node.js 22, release in `C:\Sofia\releases\<v>` with `current.json`, WinSW services *SofiaAPI*, *SofiaWorker*, *SofiaUpdater* and *SofiaWeb* (Caddy) with automatic start, firewall opened for Private/Domain networks, **Sofia Server Manager** (Arabic/English) for status and control. |
 
-Access: `http://SERVER-IP` on the restaurant LAN; `https://sofia.example.com` remotely through Caddy auto-TLS (domain
-pointing to the server) or a Cloudflare Tunnel for laptops behind NAT. PostgreSQL is never reachable from outside.
+All processes run through the same launcher (`deploy/runtime/launcher.mjs`), which starts the release named in
+`current.json` and restarts it after an update; the updater therefore works identically on Windows, Linux and Docker.
+
+Access and HTTPS: offline mode requires a secure origin, so staff devices use HTTPS — either Caddy's private
+certificate authority on the restaurant network (`https://SERVER-IP`, CA installed once per device from
+`http://SERVER-IP/sofia-ca.crt`) or a public domain with an automatic Let's Encrypt certificate. The public booking
+page needs the public option. PostgreSQL is never reachable from outside. Details: `docs/OPERATIONS.md`.
 
 ## 16. Security architecture
 
@@ -498,7 +503,7 @@ pointing to the server) or a Cloudflare Tunnel for laptops behind NAT. PostgreSQ
 | SQL injection | Parameterized queries only (Drizzle / `pg` placeholders); report builder uses whitelisted columns |
 | Rate limiting | global + strict on login/public booking/webhooks |
 | Secrets at rest | AES-256-GCM for integration credentials and MFA secrets (`SOFIA_ENCRYPTION_KEY`) |
-| Payments | No raw card data is ever stored; deposits use provider-hosted checkout or manual recording |
+| Payments | No raw card data is ever stored or processed; deposits are recorded by staff (a provider-hosted checkout can be added later without touching card data) |
 | Database | Not exposed publicly; separate roles: `sofia_owner` (migrations/backup) and `sofia_app` (runtime DML only, no DDL, append-only audit) |
 | Audit | Append-only `audit_logs` with old/new values, user, device, IP |
 | Updates | Ed25519 signature + SHA-256 verification, admin-only, never execute unverified packages |
@@ -515,7 +520,7 @@ pointing to the server) or a Cloudflare Tunnel for laptops behind NAT. PostgreSQ
 │   │   ├── src/
 │   │   │   ├── main.ts         role dispatcher (api | worker | updater | cli)
 │   │   │   ├── app.ts          Fastify app factory
-│   │   │   ├── config/         env parsing
+│   │   │   ├── config.ts       env parsing
 │   │   │   ├── db/             pool, drizzle schema, migration runner, sync locks
 │   │   │   ├── lib/            errors, route helper (RBAC + OpenAPI), crypto, audit, events
 │   │   │   ├── modules/        auth, users, branches, tables, guests, reservations, waitlist, loyalty,
@@ -535,9 +540,14 @@ pointing to the server) or a Cloudflare Tunnel for laptops behind NAT. PostgreSQ
 │           ├── i18n/           ar.json, en.json
 │           └── ui/             design system components, theme
 ├── packages/shared/            Zod schemas, enums, RBAC matrix, state machines, time utils, sync protocol
-├── deploy/                     Dockerfile, docker-compose.yml, Caddyfile, launcher
-├── installer/windows/          Install-Sofia.ps1, SofiaServerManager.ps1, service definitions
-├── scripts/                    release build + signing, update key generation, test database
+├── deploy/
+│   ├── docker/                 Dockerfile, entrypoint, PostgreSQL init (runtime role)
+│   ├── caddy/                  Caddyfile for Docker
+│   ├── runtime/                launcher.mjs (process supervisor shared by all platforms)
+│   ├── windows/                Install-Sofia.ps1, SofiaServerManager.ps1, Uninstall-Sofia.ps1, WinSW + Caddy
+│   │                           templates, Inno Setup script
+│   └── docker-compose.yml, generate-env.sh
+├── scripts/                    release build + signing, update keys, Windows bundle, test database
 ├── e2e/                        Playwright end-to-end tests (offline → sync critical scenario)
 ├── brand/                      official logo (original + transparent variants + icons)
 └── docs/                       architecture, operations, API, testing
@@ -549,25 +559,24 @@ pointing to the server) or a Cloudflare Tunnel for laptops behind NAT. PostgreSQ
 |-------|-------------|--------|
 | 1 | System architecture (this document) | Done |
 | 2 | Database ERD | Done (§4) |
-| 3 | PostgreSQL schema — versioned migrations | Done |
-| 4 | Backend/API (Fastify, OpenAPI) | Done |
-| 5 | Authentication / RBAC / MFA | Done |
-| 6 | Frontend / PWA shell, branding, i18n | Done |
-| 7 | Reservation engine (availability, exclusion constraint, state machine) | Done |
-| 8 | Guest 360° CRM (profile, history, duplicates, merge, privacy) | Done |
+| 3 | PostgreSQL schema — versioned migrations | Done, tested |
+| 4 | Backend/API (Fastify, OpenAPI) | Done, tested |
+| 5 | Authentication / RBAC / MFA | Done, tested |
+| 6 | Frontend / PWA shell, branding, i18n | Done, visually checked |
+| 7 | Reservation engine (availability, exclusion constraint, state machine) | Done, tested |
+| 8 | Guest 360° CRM (profile, history, duplicates, merge, privacy) | Done, tested |
 | 9 | Floor plan (drag & drop, live status, combinations) | Done |
-| 10 | Offline engine (IndexedDB, outbox, offline unlock) | Done |
-| 11 | Synchronization (push/pull, conflicts, dashboard) | Done |
-| 12 | POS integration (REST pull, signed webhook, CSV import, matching) | Done |
-| 13 | Loyalty (tiers, rules, rewards, points ledger) | Done |
-| 14 | Marketing (segments, campaigns, consent, outbox) | Done |
-| 15 | Analytics (host, owner, reservation, guest, table) | Done |
-| 16 | Backup (scheduled, verified, retention, restore) | Done |
-| 17 | Update Center (signed packages, migrations, rollback) | Done |
+| 10 | Offline engine (IndexedDB, outbox, offline unlock) | Done, tested in Chromium |
+| 11 | Synchronization (push/pull, conflicts, dashboard) | Done, tested |
+| 12 | POS integration (REST pull, signed webhook, CSV import, matching) | Done; REST adapter needs a real POS to validate |
+| 13 | Loyalty (tiers, rules, rewards, points ledger) | Done, tested |
+| 14 | Marketing (segments, campaigns, consent, outbox) | Done; real WhatsApp/SMS/email need credentials |
+| 15 | Analytics (host, owner, reservation, guest, table) | Done, tested |
+| 16 | Backup (scheduled, verified, retention, restore) | Done, tested (incl. least-privilege restore) |
+| 17 | Update Center (signed packages, migrations, rollback) | Done, tested |
 | 18 | Security hardening | Done |
-| 19 | Testing (unit, integration, sync, conflict, e2e offline, update) | Done |
-| 20 | Deployment (Docker, Windows installer, Server Manager) | Done |
+| 19 | Testing (unit, integration, sync, conflict, e2e offline, update) | Done — 69 tests + browser e2e |
+| 20 | Deployment (Docker, Windows installer, Server Manager) | Written; Windows scripts not yet run on Windows, Docker image not yet built |
 
-The status column reflects the state of the repository; see `docs/STATUS.md` for the verified test evidence and the
-list of items that require restaurant-specific credentials (WhatsApp Business account, POS vendor API, payment gateway
-merchant account, domain/TLS) to activate.
+`docs/STATUS.md` lists, item by item, what is verified, what still has to be proven in a real environment, and what
+is not implemented (online payment gateway, guest push notifications, server-side PDF).
