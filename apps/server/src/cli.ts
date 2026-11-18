@@ -13,7 +13,7 @@ const HELP = `Sofia's Resto-Lounge — administration CLI (v${APP_VERSION})
   migrate                     apply pending database migrations
   migrate:status              show applied / pending migrations
   backup create               create a verified backup now
-  backup list                 list backups
+  backup list [--json]        list backups
   backup restore <id> --yes   restore a backup (safety backup is taken first)
   user reset-password <username> <new-password>
   user unlock <username>
@@ -47,7 +47,9 @@ export async function runCli(args: string[]): Promise<number> {
         return 0;
       }
       if (sub === 'list') {
-        for (const b of (await listBackups()) as Record<string, unknown>[]) log(`${b.id}  ${b.status}  ${b.kind}  ${b.fileName}  ${b.sizeBytes ?? ''}`);
+        const list = (await listBackups()) as Record<string, unknown>[];
+        if (rest.includes('--json')) log(JSON.stringify(list));
+        else for (const b of list) log(`${b.id}  ${b.status}  ${b.kind}  ${b.fileName}  ${b.sizeBytes ?? ''}`);
         return 0;
       }
       if (sub === 'restore') {

@@ -2,9 +2,11 @@
   "name": "sofia-resto-lounge",
   "private": true,
   "version": "1.0.0",
-  "description": "Sofia's Resto-Lounge — Restaurant Operating & Guest Intelligence Platform",
+  "description": "Sofia's Resto-Lounge \u2014 Restaurant Operating & Guest Intelligence Platform",
   "packageManager": "pnpm@10.28.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "pnpm -r --filter @sofia/shared --filter @sofia/web --filter @sofia/server run build",
     "typecheck": "pnpm -r run typecheck",
@@ -17,7 +19,8 @@
     "e2e": "node e2e/run-e2e.mjs",
     "release:build": "node scripts/build-release.mjs",
     "release:keys": "node scripts/gen-update-keys.mjs",
-    "release:sign": "node scripts/sign-release.mjs"
+    "release:sign": "node scripts/sign-release.mjs",
+    "release:windows": "node scripts/build-windows-bundle.mjs"
   },
   "devDependencies": {
     "typescript": "5.9.3"

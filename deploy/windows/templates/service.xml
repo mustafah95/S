@@ -1,0 +1,24 @@
+<!-- WinSW v2 service definition, filled in by Install-Sofia.ps1. Do not edit by hand: re-run the installer. -->
+<service>
+  <id>{ID}</id>
+  <name>{NAME}</name>
+  <description>{DESCRIPTION}</description>
+  <executable>{EXECUTABLE}</executable>
+  <arguments>{ARGUMENTS}</arguments>
+  <workingdirectory>{WORKDIR}</workingdirectory>
+  <env name="SOFIA_ENV_FILE" value="{ENVFILE}" />
+  <env name="SOFIA_INSTALL_ROOT" value="{ROOT}" />
+  {DEPENDS}
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <onfailure action="restart" delay="10 sec" />
+  <onfailure action="restart" delay="30 sec" />
+  <onfailure action="restart" delay="2 min" />
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>30 sec</stoptimeout>
+  <logpath>{LOGDIR}</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+</service>

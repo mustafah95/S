@@ -3,6 +3,7 @@
  * Sofia launcher — keeps one Sofia role running from the release that current.json points to.
  *
  *   node launcher.mjs <api|worker|updater>            (SOFIA_INSTALL_ROOT defaults to this file's folder)
+ *   node launcher.mjs cli <command…>                  (runs one CLI command against the active release and exits)
  *
  * Install layout:
  *   <root>/current.json                {"version":"1.1.0","previous":"1.0.0"}
@@ -20,8 +21,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const role = process.argv[2] ?? 'api';
-if (!['api', 'worker', 'updater'].includes(role)) {
-  console.error(`Unknown role "${role}". Use api, worker or updater.`);
+if (!['api', 'worker', 'updater', 'cli'].includes(role)) {
+  console.error(`Unknown role "${role}". Use api, worker, updater or cli.`);
   process.exit(2);
 }
 const root = resolve(process.env.SOFIA_INSTALL_ROOT ?? dirname(fileURLToPath(import.meta.url)));
@@ -35,6 +36,8 @@ function currentRelease() {
   if (!existsSync(main)) throw new Error(`Release ${version} is missing ${main}`);
   return { version, main, web: join(root, 'releases', version, 'web') };
 }
+
+const childEnv = (rel) => ({ ...process.env, SOFIA_INSTALL_ROOT: root, SOFIA_WEB_DIR: process.env.SOFIA_WEB_DIR_OVERRIDE ?? rel.web, SOFIA_RELEASE: rel.version });
 
 let child = null;
 let stopping = false;
@@ -52,7 +55,7 @@ function start() {
   const started = Date.now();
   child = spawn(process.execPath, [rel.main, role], {
     stdio: 'inherit',
-    env: { ...process.env, SOFIA_INSTALL_ROOT: root, SOFIA_WEB_DIR: process.env.SOFIA_WEB_DIR_OVERRIDE ?? rel.web, SOFIA_RELEASE: rel.version },
+    env: childEnv(rel),
     windowsHide: true,
   });
   child.on('exit', (code, signal) => {
@@ -69,6 +72,7 @@ function start() {
 
 for (const sig of ['SIGINT', 'SIGTERM', 'SIGBREAK']) {
   process.on(sig, () => {
+    if (role === 'cli') return;
     stopping = true;
     if (!child) process.exit(0);
     child.kill('SIGTERM');
@@ -76,4 +80,11 @@ for (const sig of ['SIGINT', 'SIGTERM', 'SIGBREAK']) {
   });
 }
 
-start();
+if (role === 'cli') {
+  // One-shot administration command (backup, restore, migrate, health …): no restart loop.
+  const rel = currentRelease();
+  const cli = spawn(process.execPath, [rel.main, 'cli', ...process.argv.slice(3)], { stdio: 'inherit', env: childEnv(rel), windowsHide: true });
+  cli.on('exit', (code) => process.exit(code ?? 1));
+} else {
+  start();
+}
