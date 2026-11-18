@@ -1,0 +1,25 @@
+{
+  "name": "sofia-resto-lounge",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Sofia's Resto-Lounge — Restaurant Operating & Guest Intelligence Platform",
+  "packageManager": "pnpm@10.28.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "pnpm -r --filter @sofia/shared --filter @sofia/web --filter @sofia/server run build",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "test:db:start": "bash scripts/test-db.sh start",
+    "test:db:stop": "bash scripts/test-db.sh stop",
+    "dev:server": "pnpm --filter @sofia/server dev",
+    "dev:web": "pnpm --filter @sofia/web dev",
+    "migrate": "pnpm --filter @sofia/server cli migrate",
+    "e2e": "node e2e/run-e2e.mjs",
+    "release:build": "node scripts/build-release.mjs",
+    "release:keys": "node scripts/gen-update-keys.mjs",
+    "release:sign": "node scripts/sign-release.mjs"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
