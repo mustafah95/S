@@ -111,6 +111,7 @@ async function housekeeping() {
   await db.execute(sql`DELETE FROM user_sessions WHERE expires_at < now() - interval '7 days' OR (rotated_at IS NOT NULL AND rotated_at < now() - interval '2 days')`);
   await db.execute(sql`DELETE FROM system_events WHERE at < now() - interval '180 days'`);
   await db.execute(sql`DELETE FROM in_app_notifications WHERE created_at < now() - interval '60 days'`);
+  await db.execute(sql`DELETE FROM guest_push_subscriptions WHERE revoked_at < now() - interval '30 days'`);
 }
 
 async function birthdayGreetings() {

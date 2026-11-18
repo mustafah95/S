@@ -20,9 +20,10 @@ Arabic (RTL, default) and English · Iraqi Dinar with optional USD · multi-bran
 | Offline-first | IndexedDB copy of the working data, outbox of changes, offline sign-in, automatic sync with idempotent operations, three-way merge and a conflict review screen |
 | POS | REST polling, signed webhooks, CSV import, invoice-to-guest matching |
 | Loyalty | tiers, earning rules, rewards, birthday points, expiry, ledger |
-| Marketing | rule-based segments, WhatsApp (official Cloud API) / SMS / email campaigns with consent and opt-out |
+| Marketing | rule-based segments, WhatsApp (official Cloud API) / SMS / email / Web Push campaigns with consent and opt-out |
+| Notifications | confirmation, reminder, change, cancellation, table ready, birthday, feedback — WhatsApp, SMS, email or browser notifications the guest turns on from the confirmation page (no provider account needed) |
 | Feedback | post-visit survey links, ratings dashboard |
-| Analytics & reports | host and owner dashboards, report builder with CSV / Excel / JSON export and print-to-PDF |
+| Analytics & reports | host and owner dashboards, report builder with PDF (Arabic or English, generated on the server) / Excel / CSV / JSON export |
 | Public booking | booking page, embeddable widget (`<script src=".../widget.js">`), QR code, confirmation page with calendar file and self-service cancellation |
 | Operations | first-run wizard (no default password), RBAC with 14 roles, MFA (TOTP), audit log, verified automatic backups and restore, signed updates with automatic rollback, health checks, full data export |
 
@@ -84,4 +85,5 @@ secure origins). Both installation options set up HTTPS; see the operations guid
 ## Brand
 
 The official Sofia's Resto-Lounge logo is used unchanged (`brand/`); transparent variants only remove the
-background. Colours: burgundy `#6B1420` / `#3E0B12`, cream `#F3E6D0`, gold `#C9A26B`.
+background. Colours: burgundy `#6B1420` / `#3E0B12`, cream `#F3E6D0`, gold `#C9A26B`. PDF reports use IBM Plex Sans
+Arabic (SIL Open Font License, `apps/server/assets/fonts/OFL.txt`), the same family as the web app.

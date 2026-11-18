@@ -73,6 +73,7 @@ export const ar: Dict = {
     seatWalkIn: 'إجلاس ضيف مباشر هنا', since: 'منذ',
   },
   guest: {
+    pushDevices: 'أجهزة الإشعارات', 
     title: 'الضيوف', new: 'ضيف جديد', profile: 'ملف الضيف', firstName: 'الاسم الأول', lastName: 'اسم العائلة', preferredName: 'الاسم المفضل',
     whatsapp: 'واتساب', birthday: 'تاريخ الميلاد', anniversary: 'ذكرى الزواج', address: 'العنوان', company: 'الشركة', language: 'اللغة المفضلة',
     vipLevel: 'مستوى الضيف', tags: 'الوسوم', allergies: 'الحساسية', dietary: 'التفضيلات الغذائية', preferences: 'التفضيلات', consent: 'الموافقة على التسويق',
@@ -111,6 +112,7 @@ export const ar: Dict = {
     rebuild: 'إعادة بناء النسخة المحلية',
   },
   settings: {
+    pushHint: 'الإشعارات (Push): يفعّلها الضيف من صفحة تأكيد الحجز (يتطلب عنواناً عاماً بـ HTTPS). تُولَّد المفاتيح تلقائياً ولا حاجة لحساب لدى أي مزوّد.', 
     title: 'الإعدادات', general: 'عام', branding: 'الهوية', branches: 'الفروع', reservations: 'الحجوزات', guests: 'الضيوف',
     notifications: 'الإشعارات', integrations: 'التكاملات', users: 'المستخدمون والأدوار', security: 'الأمان', backup: 'النسخ الاحتياطي', updates: 'التحديثات',
     system: 'مدير الخادم', logs: 'السجلات', audit: 'سجل التدقيق', data: 'تصدير البيانات', restaurantName: 'اسم المطعم', logo: 'الشعار', colors: 'الألوان',
@@ -147,6 +149,10 @@ export const ar: Dict = {
     request: 'طلب خاص', consent: 'أرغب في تلقي العروض والأخبار', book: 'تأكيد الحجز', noSlots: 'لا توجد طاولات متاحة في هذا التاريخ — جرّب يوماً آخر.',
     confirmed: 'تم حجز طاولتك', pendingDeposit: 'تم استلام الحجز — بانتظار العربون', number: 'رقم الحجز', policy: 'سياسة الإلغاء',
     addCalendar: 'إضافة إلى التقويم', cancel: 'إلغاء الحجز', cancelled: 'تم إلغاء الحجز', cancelConfirm: 'هل تريد إلغاء هذا الحجز؟',
+    pushTitle: 'الإشعارات على هذا الهاتف', pushText: 'استلم تذكيراً وأي تغيير على هذا الحجز كإشعار.',
+    pushOffers: 'أرسلوا لي العروض والأخبار أيضاً', pushEnable: 'تفعيل الإشعارات', pushOn: 'الإشعارات مفعّلة على هذا الجهاز.', pushOff: 'إيقاف',
+    pushDenied: 'الإشعارات محظورة لهذا الموقع في إعدادات المتصفح.', pushUnsupported: 'هذا المتصفح لا يدعم الإشعارات.',
+    pushIos: 'على آيفون/آيباد: اضغط مشاركة ← إضافة إلى الشاشة الرئيسية، افتح صوفيا من الشاشة الرئيسية، ثم فعّل الإشعارات.',
     feedbackTitle: 'كيف كانت زيارتك؟', thanks: 'شكراً لرأيك!', submit: 'إرسال', comment: 'أخبرنا المزيد', suggestion: 'اقتراح',
     optOut: 'تم إلغاء اشتراكك في الرسائل التسويقية.', bigParty: 'للمجموعات الكبيرة يرجى الاتصال بنا', deposit: 'العربون',
   },

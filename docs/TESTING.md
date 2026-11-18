@@ -28,9 +28,12 @@ independent and can run in parallel.
 | `apps/server/test/business.test.ts` | 10 | POS signed webhook + matching + CRM/loyalty, CSV import, loyalty redemption, consent-aware marketing delivery, public booking with QR and cancellation token, bot/oversize rejection, low ratings → complaints, dashboards, report export CSV/Excel, full data export |
 | `apps/server/test/update.test.ts` | 7 | **§82 update 1.0.0 → 1.1.0**, tampered package refused, failing migration stops safely, automatic rollback of application and database on failed health check, side-by-side releases, modified-migration refusal, Drizzle schema drift check |
 | `apps/server/test/backup.test.ts` | 4 | verified backup and restore (sync feed never moves backwards, new epoch), permissions, scheduling, health report |
+| `apps/server/test/push.test.ts` | 7 | Web Push: only browser push services accepted (SSRF), opt-in with reservation token, consent for offers, delivery to a local stand-in push service whose messages the test **decrypts** (RFC 8291) and whose **VAPID signature it verifies** (RFC 8292), expired subscriptions revoked, consent-aware push campaigns, redirects never followed, renew/unsubscribe/anonymise |
+| `apps/server/test/reports-pdf.test.ts` | 4 | bidirectional text ordering (Arabic, numbers, Latin, brackets, isolated dates), multi-page Arabic PDF with embedded font, grouped English/Arabic PDFs with totals, empty result, export permission |
 | `e2e/critical-offline-sync.mjs` | 1 scenario | see below |
+| `e2e/guest-push.mjs` | 1 scenario | full Chromium: online booking → "turn on notifications" → subscription and consent in PostgreSQL → guest service worker (scope `/r/` only) shows the pushed Arabic notification → "turn off" revokes it |
 
-Totals at the time of writing: 69 automated tests + the browser scenario, all passing.
+Totals at the time of writing: 80 automated tests + two browser scenarios, all passing.
 
 ## The three critical scenarios
 
@@ -69,10 +72,13 @@ its health check is rolled back together with its database changes.
 * Bundled release run from the Windows-style directory layout on Linux with the exact `sofia.env` format the
   Windows installer writes: launcher (`api`, `worker`, `updater`, `cli`), migrations, health, web app, backups.
 * Visual checks of the staff app (Arabic RTL and English), public booking page on a phone viewport.
+* PDF reports rendered to images (`pdftoppm`) and inspected in Arabic and English, single- and multi-page; PDF
+  download from the staff app's report page; PDF generation from the bundled release (fonts and metrics shipped).
 
 ## Not covered by automated tests
 
 * Windows installer, Server Manager and uninstaller (PowerShell; not yet run on Windows).
 * Docker image build (no Docker daemon in the development environment; `docker compose config` validates the file).
 * Real WhatsApp / SMS / SMTP / POS vendor endpoints — adapters are tested against stubbed HTTP servers.
+* Real Web Push services (FCM, Mozilla, Apple, Microsoft) — tested against a local stand-in that checks the protocol.
 * iOS Safari / Android Chrome on real devices (service worker and IndexedDB behaviour was tested in Chromium).

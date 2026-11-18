@@ -65,6 +65,8 @@ Re-running the installer repairs an installation without touching data or secret
    There is no built-in administrator and no default password.
 3. Sign in as the owner, enable MFA (Settings › Security), create staff accounts with the matching roles.
 4. Settings › Integrations: WhatsApp Business Cloud API, SMTP email, SMS provider, POS connection (optional).
+   Settings › Notifications: choose the channels; *push* lets guests turn on browser notifications from their
+   reservation confirmation page (see section 13).
 5. Settings › Backups: check the schedule, retention and that the first backup succeeds.
 
 The setup token is useless once the wizard is completed.
@@ -166,6 +168,7 @@ Environment variables (Windows: `C:\Sofia\config\sofia.env`; Docker: `deploy/.en
 | `SOFIA_EMBEDDED_WORKER` | run background jobs inside the API process (default only in development) |
 | `SOFIA_RATE_LIMIT_MAX`, `SOFIA_LOGIN_RATE_LIMIT` | requests per minute overall / sign-in attempts per minute |
 | `SOFIA_LOG_LEVEL` | `info` (default), `warn`, `debug`, … |
+| `SOFIA_PUSH_EXTRA_HOSTS` | additional Web Push service hosts (comma separated); the browser vendors' push services are built in |
 
 ## 11. Security checklist
 
@@ -182,3 +185,18 @@ Environment variables (Windows: `C:\Sofia\config\sofia.env`; Docker: `deploy/.en
 Settings › Data › *Export everything* downloads a ZIP of CSV files (guests, reservations, visits, notes,
 loyalty, feedback, …); `sofia export` writes JSON files. Backups are standard PostgreSQL custom-format dumps that
 any PostgreSQL 16 can restore. There is no proprietary storage format.
+
+## 13. Guest notifications (Web Push)
+
+* Enable *push* in Settings › Notifications (optionally make it the transactional channel). No provider account is
+  needed: the restaurant's VAPID key pair is generated on first use and stored encrypted with the other secrets.
+* Guests turn notifications on from the confirmation page of their reservation (after booking online or from the
+  link in their confirmation message). Offers are only sent when the guest ticks "also send me offers"; turning
+  notifications off on the last device withdraws that consent. Staff see the number of subscribed devices on the
+  guest profile, never the browser addresses.
+* Requirements: the public address must be HTTPS (`SOFIA_PUBLIC_URL`), and the server needs outbound HTTPS to the
+  push services (`fcm.googleapis.com`, `*.push.services.mozilla.com`, `*.push.apple.com`, `*.notify.windows.com`).
+  On iPhone/iPad (iOS 16.4+) the guest first adds the page to the Home Screen; the page explains this.
+* The server only sends to those push services, never follows redirects, and removes subscriptions the push service
+  reports as expired (HTTP 404/410). Restoring an old backup also restores the VAPID keys of that time.
+

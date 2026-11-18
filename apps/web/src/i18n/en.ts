@@ -71,6 +71,7 @@ export const en = {
     seatWalkIn: 'Seat walk-in here', since: 'since',
   },
   guest: {
+    pushDevices: 'Devices with notifications', 
     title: 'Guests', new: 'New guest', profile: 'Guest profile', firstName: 'First name', lastName: 'Last name', preferredName: 'Preferred name',
     whatsapp: 'WhatsApp', birthday: 'Birthday', anniversary: 'Anniversary', address: 'Address', company: 'Company', language: 'Preferred language',
     vipLevel: 'VIP level', tags: 'Tags', allergies: 'Allergies', dietary: 'Dietary preferences', preferences: 'Preferences', consent: 'Marketing consent',
@@ -109,6 +110,7 @@ export const en = {
     rebuild: 'Rebuild local copy',
   },
   settings: {
+    pushHint: 'Push: guests turn notifications on from their reservation confirmation page (HTTPS public address required). Keys are generated automatically; no provider account is needed.', 
     title: 'Settings', general: 'General', branding: 'Branding', branches: 'Branches', reservations: 'Reservations', guests: 'Guests',
     notifications: 'Notifications', integrations: 'Integrations', users: 'Users & roles', security: 'Security', backup: 'Backup', updates: 'Updates',
     system: 'Server Manager', logs: 'Logs', audit: 'Audit log', data: 'Data export', restaurantName: 'Restaurant name', logo: 'Logo', colors: 'Colours',
@@ -145,6 +147,10 @@ export const en = {
     request: 'Special request', consent: 'I would like to receive offers and news', book: 'Confirm reservation', noSlots: 'No tables available for this date — please try another day.',
     confirmed: 'Your table is reserved', pendingDeposit: 'Reservation received — awaiting deposit', number: 'Reservation number', policy: 'Cancellation policy',
     addCalendar: 'Add to calendar', cancel: 'Cancel reservation', cancelled: 'Reservation cancelled', cancelConfirm: 'Cancel this reservation?',
+    pushTitle: 'Notifications on this phone', pushText: 'Get a reminder and any changes to this reservation as a notification.',
+    pushOffers: 'Also send me offers and news', pushEnable: 'Turn on notifications', pushOn: 'Notifications are on for this device.', pushOff: 'Turn off',
+    pushDenied: 'Notifications are blocked for this site in the browser settings.', pushUnsupported: 'This browser cannot receive notifications.',
+    pushIos: 'On iPhone/iPad: tap Share → Add to Home Screen, open Sofia’s from the Home Screen, then turn notifications on.',
     feedbackTitle: 'How was your visit?', thanks: 'Thank you for your feedback!', submit: 'Send', comment: 'Tell us more', suggestion: 'Suggestion',
     optOut: 'You have been unsubscribed from marketing messages.', bigParty: 'For larger parties please call us', deposit: 'Deposit',
   },

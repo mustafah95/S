@@ -2,13 +2,16 @@ import type { FastifyInstance } from 'fastify';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import ExcelJS from 'exceljs';
 import { z } from 'zod';
-import { zId, zIsoDate } from '@sofia/shared';
+import { utcToZoned, zId, zIsoDate } from '@sofia/shared';
 import { getDb, q, schema, sql } from '../db/pool.js';
 import { audit } from '../lib/audit.js';
 import { assertBranchAccess, branchScope, can, type RequestContext } from '../lib/context.js';
 import { badRequest, forbidden, notFound } from '../lib/errors.js';
 import { defineRoute, idParams } from '../lib/route.js';
+import { getSetting } from '../lib/settings.js';
 import { toCsv } from './export.js';
+import { AGGREGATE_AR, REPORT_AR, renderReportPdf } from './reports-pdf.js';
+import { ltr } from '../lib/pdf.js';
 
 /**
  * Report builder. Datasets expose a whitelist of columns (SQL expressions are fixed server-side), so user
@@ -193,10 +196,52 @@ export async function runReport(ctx: RequestContext, input: ReportInput) {
   const order = input.sort && allowedSort.has(input.sort.column) ? sql`ORDER BY ${sql.identifier(input.sort.column)} ${sql.raw(input.sort.dir)}` : sql``;
   const group = grouped ? sql`GROUP BY ${sql.join(input.groupBy.map((k) => sql.raw(col(k).sql)), sql`, `)}` : sql``;
   const rows = await q(getDb(), sql`SELECT ${sql.join(selects, sql`, `)} FROM ${sql.raw(ds.from)} WHERE ${sql.join(conds, sql` AND `)} ${group} ${order} LIMIT ${input.limit}`);
+  const ar = (k: string) => REPORT_AR[input.dataset]?.columns[k] ?? col(k).label;
+  const plain = (k: string) => ({ key: k, label: col(k).label, labelAr: ar(k), type: col(k).type, summable: false });
   const headers = grouped
-    ? [...input.groupBy.map((k) => ({ key: k, label: col(k).label })), { key: 'count', label: 'Count' }, ...input.aggregates.filter((a) => a.fn !== 'count').map((a) => ({ key: `${a.fn}_${a.column}`, label: `${a.fn.toUpperCase()} ${col(a.column).label}` }))]
-    : input.columns.map((k) => ({ key: k, label: col(k).label }));
-  return { headers, rows, dataset: ds.label };
+    ? [
+        ...input.groupBy.map(plain),
+        { key: 'count', label: 'Count', labelAr: AGGREGATE_AR.count!, type: 'number' as ColType, summable: true },
+        ...input.aggregates
+          .filter((a) => a.fn !== 'count')
+          .map((a) => ({ key: `${a.fn}_${a.column}`, label: `${a.fn.toUpperCase()} ${col(a.column).label}`, labelAr: `${AGGREGATE_AR[a.fn]} ${ar(a.column)}`, type: 'number' as ColType, summable: a.fn === 'sum' })),
+      ]
+    : input.columns.map(plain);
+  return { headers, rows, dataset: ds.label, datasetAr: REPORT_AR[input.dataset]?.label ?? ds.label };
+}
+
+const OP_TEXT = { eq: '=', neq: '!=', gt: '>', gte: '>=', lt: '<', lte: '<=', contains: '~', in: ':' } as const;
+
+/** Builds the PDF for an export: title, period, branch, grouping, filters, who generated it and when. */
+async function reportPdf(ctx: RequestContext, body: ReportInput & { language?: 'ar' | 'en'; title?: string }, r: Awaited<ReturnType<typeof runReport>>): Promise<Buffer> {
+  const general = await getSetting('general');
+  const branding = await getSetting('branding');
+  const lang = body.language ?? (general.defaultLanguage === 'en' ? 'en' : 'ar');
+  const ar = lang === 'ar';
+  const ds = DATASETS[body.dataset]!;
+  const label = (k: string) => (ar ? REPORT_AR[body.dataset]?.columns[k] : undefined) ?? ds.columns[k]?.label ?? k;
+  const meta: string[] = [];
+  if (body.from || body.to) meta.push(`${ar ? 'الفترة' : 'Period'}: ${ltr(body.from ?? '…')} – ${ltr(body.to ?? '…')}`);
+  if (ds.branchColumn) {
+    const branch = body.branchId ? (await q<{ name: string; name_ar: string | null }>(getDb(), sql`SELECT name, name_ar FROM branches WHERE id = ${body.branchId}`))[0] : undefined;
+    meta.push(`${ar ? 'الفرع' : 'Branch'}: ${branch ? (ar && branch.name_ar ? branch.name_ar : branch.name) : ar ? 'جميع الفروع المتاحة' : 'All accessible branches'}`);
+  }
+  if (body.groupBy.length) meta.push(`${ar ? 'مجمّع حسب' : 'Grouped by'}: ${body.groupBy.map(label).join('، ')}`);
+  if (body.filters.length) meta.push(`${ar ? 'التصفية' : 'Filters'}: ${body.filters.map((f) => `${label(f.column)} ${OP_TEXT[f.op]} ${Array.isArray(f.value) ? f.value.join('/') : String(f.value)}`).join(' · ')}`);
+  const now = utcToZoned(new Date(), general.timezone);
+  const generatedAt = `${now.date} ${now.time}`;
+  const who = ctx.user?.displayName ?? ctx.user?.username ?? '';
+  meta.push(ar ? `${r.rows.length} صف · أُنشئ في ${ltr(generatedAt)} بواسطة ${who}` : `${r.rows.length} rows · generated ${generatedAt} by ${who}`);
+  return renderReportPdf({
+    lang,
+    title: body.title || (ar ? `تقرير ${r.datasetAr}` : `${r.dataset} report`),
+    restaurant: ar && branding.restaurantNameAr ? branding.restaurantNameAr : branding.restaurantName,
+    meta,
+    generatedAt,
+    columns: r.headers.map((h) => ({ key: h.key, label: ar ? h.labelAr : h.label, type: h.type, numeric: h.type === 'number', summable: h.summable })),
+    rows: r.rows as Record<string, unknown>[],
+    truncated: r.rows.length >= body.limit,
+  });
 }
 
 export async function registerReportRoutes(app: FastifyInstance): Promise<void> {
@@ -205,15 +250,19 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
   defineRoute(app, { method: 'GET', url: '/api/v1/reports/datasets', summary: 'Datasets and columns available to the report builder', tags: ['Reports'], permission: 'reports.read' }, async ({ ctx }) =>
     Object.entries(DATASETS)
       .filter(([, d]) => can(ctx, d.permission))
-      .map(([key, d]) => ({ key, label: d.label, columns: Object.entries(d.columns).map(([k, c]) => ({ key: k, label: c.label, type: c.type })) })),
+      .map(([key, d]) => ({ key, label: d.label, labelAr: REPORT_AR[key]?.label ?? d.label, columns: Object.entries(d.columns).map(([k, c]) => ({ key: k, label: c.label, labelAr: REPORT_AR[key]?.columns[k] ?? c.label, type: c.type })) })),
   );
 
   defineRoute(app, { method: 'POST', url: '/api/v1/reports/run', summary: 'Run a report (filters, grouping, sorting, date range)', tags: ['Reports'], permission: 'reports.read', body: reportSchema }, async ({ body, ctx }) => runReport(ctx, body));
 
-  defineRoute(app, { method: 'POST', url: '/api/v1/reports/export', summary: 'Export a report as CSV, Excel or JSON', tags: ['Reports'], permission: 'reports.export', body: reportSchema.extend({ format: z.enum(['csv', 'xlsx', 'json']) }) }, async ({ body, ctx, reply }) => {
+  defineRoute(app, { method: 'POST', url: '/api/v1/reports/export', summary: 'Export a report as PDF, CSV, Excel or JSON', tags: ['Reports'], permission: 'reports.export', body: reportSchema.extend({ format: z.enum(['pdf', 'csv', 'xlsx', 'json']), language: z.enum(['ar', 'en']).optional(), title: z.string().trim().max(120).optional() }) }, async ({ body, ctx, reply }) => {
     const r = await runReport(ctx, body);
     await audit(db, ctx, { action: 'report.export', entityType: 'report', entityId: body.dataset, meta: { format: body.format, rows: r.rows.length } });
     const name = `sofia-${body.dataset}-${new Date().toISOString().slice(0, 10)}`;
+    if (body.format === 'pdf') {
+      const pdf = await reportPdf(ctx, body, r);
+      return reply.header('content-type', 'application/pdf').header('content-disposition', `attachment; filename="${name}.pdf"`).send(pdf);
+    }
     if (body.format === 'json') {
       reply.header('content-disposition', `attachment; filename="${name}.json"`);
       return r.rows;

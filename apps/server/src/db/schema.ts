@@ -822,6 +822,25 @@ export const systemUpdates = pgTable("system_updates", {
 	error: text(),
 });
 
+export const guestPushSubscriptions = pgTable("guest_push_subscriptions", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	guestId: uuid("guest_id").notNull(),
+	endpoint: text().notNull(),
+	publicKey: text("public_key").notNull(),
+	authSecret: text("auth_secret").notNull(),
+	language: text(),
+	userAgent: text("user_agent"),
+	reservationId: uuid("reservation_id"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+	lastSuccessAt: timestamp("last_success_at", { withTimezone: true, mode: 'date' }),
+	lastFailureAt: timestamp("last_failure_at", { withTimezone: true, mode: 'date' }),
+	lastError: text("last_error"),
+	failureCount: integer("failure_count").default(0).notNull(),
+	revokedAt: timestamp("revoked_at", { withTimezone: true, mode: 'date' }),
+	revokeReason: text("revoke_reason"),
+});
+
 export const userBranches = pgTable("user_branches", {
 	userId: uuid("user_id").notNull(),
 	branchId: uuid("branch_id").notNull(),

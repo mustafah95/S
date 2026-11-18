@@ -33,4 +33,7 @@ const require = createRequire(import.meta.url);
 const swaggerUi = dirname(require.resolve('@fastify/swagger-ui/package.json'));
 // @fastify/swagger-ui reads its assets relative to __dirname, which is the bundle folder after bundling.
 cpSync(join(swaggerUi, 'static'), join(out, 'static'), { recursive: true });
+// PDF reports: Arabic fonts + logo, and PDFKit's built-in font metrics (it reads __dirname/data/*.afm at start-up).
+cpSync(join(here, 'assets'), join(out, 'assets'), { recursive: true });
+cpSync(join(dirname(require.resolve('pdfkit/package.json')), 'js', 'data'), join(out, 'data'), { recursive: true });
 console.log(`Server bundle written to ${out}`);

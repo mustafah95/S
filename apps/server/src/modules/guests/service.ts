@@ -252,6 +252,7 @@ export async function mergeGuests(tx: DbOrTx, ctx: RequestContext, targetId: str
     'complaints',
     'waitlist_entries',
     'notification_outbox',
+    'guest_push_subscriptions',
   ];
   for (const t of tables) {
     await tx.execute(sql`UPDATE ${sql.identifier(t)} SET guest_id = ${targetId} WHERE guest_id IN ${ids}`);
@@ -344,6 +345,7 @@ export async function anonymizeGuest(tx: DbOrTx, ctx: RequestContext, id: string
   await tx.execute(sql`UPDATE reservations SET guest_name = 'Anonymised', guest_phone = NULL WHERE guest_id = ${id}`);
   await tx.execute(sql`UPDATE guest_notes SET body = '[removed]', deleted_at = now() WHERE guest_id = ${id}`);
   await tx.execute(sql`UPDATE waitlist_entries SET guest_name = 'Anonymised', phone = NULL WHERE guest_id = ${id}`);
+  await tx.execute(sql`DELETE FROM guest_push_subscriptions WHERE guest_id = ${id}`);
   await audit(tx, ctx, { action: 'guest.anonymize', entityType: 'guest', entityId: id, meta: { previousName: `${before.firstName} ${before.lastName ?? ''}`.trim().slice(0, 1) + '…' } });
   await publish({ type: 'changes', entities: ['guests', 'reservations', 'guest_notes'] }, tx);
   return after!;
@@ -425,6 +427,10 @@ export async function guestProfile(tx: DbOrTx, id: string) {
     ]);
   const yearly = new Map<string, number>();
   for (const m of monthly as { month: string; spend: number }[]) yearly.set(m.month.slice(0, 4), (yearly.get(m.month.slice(0, 4)) ?? 0) + m.spend);
+  const push = await q<{ active: number; last_success_at: Date | null }>(
+    tx,
+    sql`SELECT count(*)::int AS active, max(last_success_at) AS last_success_at FROM guest_push_subscriptions WHERE guest_id = ${id} AND revoked_at IS NULL`,
+  );
   const byBranch = await q(tx, sql`SELECT b.name, sum(i.total_base)::float AS spend, count(*)::int AS invoices FROM pos_invoices i JOIN branches b ON b.id = i.branch_id
                                     WHERE i.guest_id = ${id} AND i.status = 'closed' GROUP BY b.name ORDER BY spend DESC`);
   return {
@@ -463,6 +469,8 @@ export async function guestProfile(tx: DbOrTx, id: string) {
     marketing: camelRows(campaigns),
     notes: camelRows(notes),
     occasions: camelRows(occasions),
+    /** Browsers subscribed to Web Push notifications (no endpoints exposed to staff). */
+    push: { devices: push[0]?.active ?? 0, lastDeliveredAt: push[0]?.last_success_at ?? null },
   };
 }
 

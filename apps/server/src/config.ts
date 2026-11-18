@@ -59,6 +59,8 @@ const envSchema = z.object({
   SOFIA_EMBEDDED_WORKER: bool,
   SOFIA_RATE_LIMIT_MAX: z.coerce.number().int().min(10).default(600),
   SOFIA_LOGIN_RATE_LIMIT: z.coerce.number().int().min(1).default(10),
+  /** Additional Web Push service hosts (comma separated) besides the browser vendors' push services. */
+  SOFIA_PUSH_EXTRA_HOSTS: z.string().default(''),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -124,7 +126,10 @@ export const config = {
   embeddedWorker: env.SOFIA_EMBEDDED_WORKER ?? !isProd,
   rateLimitMax: env.SOFIA_RATE_LIMIT_MAX,
   loginRateLimit: env.SOFIA_LOGIN_RATE_LIMIT,
+  pushExtraHosts: env.SOFIA_PUSH_EXTRA_HOSTS.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
   migrationsDir: [join(here, '../migrations'), join(here, 'migrations')].find((d) => existsSync(d)) ?? join(here, '../migrations'),
+  /** Fonts and brand images used for PDF reports (apps/server/assets; copied next to main.js in releases). */
+  assetsDir: [join(here, '../assets'), join(here, 'assets')].find((d) => existsSync(join(d, 'fonts'))) ?? join(here, '../assets'),
 };
 
 export type Config = typeof config;

@@ -24,8 +24,11 @@ let baseUrl: string;
 const work = mkdtempSync(join(tmpdir(), 'sofia-update-'));
 const installRoot = join(work, 'install');
 const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+/** Test migrations are numbered after the newest real migration, so the suite keeps working as migrations are added. */
+const LATEST = Math.max(...readdirSync(config.migrationsDir).filter((f) => /^\d+_.*\.sql$/.test(f)).map((f) => Number(f.split('_')[0])));
+const mig = (offset: number, name: string) => `${String(LATEST + offset).padStart(3, '0')}_${name}.sql`;
 /** Releases are cumulative: every package ships all earlier migrations. */
-const V110 = { '010_guest_favorite_drink.sql': 'ALTER TABLE guests ADD COLUMN favorite_drink text;\n' };
+const V110 = { [mig(1, 'guest_favorite_drink')]: 'ALTER TABLE guests ADD COLUMN favorite_drink text;\n' };
 const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
 
 async function buildPackage(version: string, extraMigrations: Record<string, string>): Promise<string> {
@@ -126,7 +129,7 @@ describe('CRITICAL §82 — Update Center', () => {
     const backup = await q1<{ kind: string; status: string; file_path: string }>(getDb(), sql`SELECT kind, status, file_path FROM backups WHERE id = ${job!.backup_id}`);
     expect(backup).toMatchObject({ kind: 'pre_update', status: 'completed' });
     expect(existsSync(backup!.file_path)).toBe(true);
-    expect(job!.migrations_applied).toEqual([10]);
+    expect(job!.migrations_applied).toEqual([LATEST + 1]);
     const col = await q(getDb(), sql`SELECT 1 FROM information_schema.columns WHERE table_name = 'guests' AND column_name = 'favorite_drink'`);
     expect(col).toHaveLength(1);
     expect(readFileSync(join(installRoot, 'releases', '1.1.0', 'web', 'index.html'), 'utf8')).toContain('1.1.0');
@@ -154,19 +157,19 @@ describe('CRITICAL §82 — Update Center', () => {
 
   it('stops safely when a migration fails (transactional migration, nothing switched)', async () => {
     const before = await dataSnapshot();
-    const pkg = await buildPackage('1.2.1', { ...V110, '011_broken.sql': 'ALTER TABLE does_not_exist ADD COLUMN x int;\n' });
+    const pkg = await buildPackage('1.2.1', { ...V110, [mig(2, 'broken')]: 'ALTER TABLE does_not_exist ADD COLUMN x int;\n' });
     const jobId = await createJob('1.1.0', releaseEntry('1.2.1', pkg, '1.1.0'));
     const status = await runUpdateJob(jobId, deps(() => true, []));
     expect(['failed', 'rolled_back']).toContain(status);
     expect(readCurrent(installRoot)!.version).toBe('1.1.0');
-    const v = await q(getDb(), sql`SELECT version FROM schema_migrations WHERE version = 11`);
+    const v = await q(getDb(), sql`SELECT version FROM schema_migrations WHERE version = ${LATEST + 2}`);
     expect(v).toHaveLength(0);
     expect(await dataSnapshot()).toMatchObject({ guests: before!.guests, reservations: before!.reservations });
   });
 
   it('rolls back application AND database when the new version fails its health check', async () => {
     const before = await dataSnapshot();
-    const pkg = await buildPackage('1.3.0', { ...V110, '011_loyalty_note.sql': 'ALTER TABLE loyalty_transactions ADD COLUMN note text;\n' });
+    const pkg = await buildPackage('1.3.0', { ...V110, [mig(2, 'loyalty_note')]: 'ALTER TABLE loyalty_transactions ADD COLUMN note text;\n' });
     const jobId = await createJob('1.1.0', releaseEntry('1.3.0', pkg, '1.1.0'));
     const restarts: string[][] = [];
     const status = await runUpdateJob(jobId, deps((v) => v !== '1.3.0', restarts));
@@ -176,7 +179,7 @@ describe('CRITICAL §82 — Update Center', () => {
     const col = await q(getDb(), sql`SELECT 1 FROM information_schema.columns WHERE table_name = 'loyalty_transactions' AND column_name = 'note'`);
     expect(col).toHaveLength(0); // database restored from the pre-update backup
     const m = await q(getDb(), sql`SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1`);
-    expect(m[0]!.version).toBe(10);
+    expect(m[0]!.version).toBe(LATEST + 1);
     expect(restarts).toHaveLength(2); // restart into 1.3.0, then back into 1.1.0
     const after = await dataSnapshot();
     expect(after!.guests).toBe(before!.guests);
@@ -195,7 +198,7 @@ describe('migration safety', () => {
     const { runMigrations } = await import('../src/db/migrator.js');
     const dir = mkdtempSync(join(tmpdir(), 'sofia-mig-'));
     cpSync(config.migrationsDir, dir, { recursive: true });
-    writeFileSync(join(dir, '010_guest_favorite_drink.sql'), 'ALTER TABLE guests ADD COLUMN favorite_drink text;\n');
+    writeFileSync(join(dir, mig(1, 'guest_favorite_drink')), 'ALTER TABLE guests ADD COLUMN favorite_drink text;\n');
     writeFileSync(join(dir, '001_initial.sql'), readFileSync(join(dir, '001_initial.sql'), 'utf8') + '\n-- edited');
     await expect(runMigrations(config.databaseOwnerUrl, dir)).rejects.toThrow(/modified after it was applied/);
   });

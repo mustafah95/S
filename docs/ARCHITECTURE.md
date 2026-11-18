@@ -570,13 +570,13 @@ page needs the public option. PostgreSQL is never reachable from outside. Detail
 | 11 | Synchronization (push/pull, conflicts, dashboard) | Done, tested |
 | 12 | POS integration (REST pull, signed webhook, CSV import, matching) | Done; REST adapter needs a real POS to validate |
 | 13 | Loyalty (tiers, rules, rewards, points ledger) | Done, tested |
-| 14 | Marketing (segments, campaigns, consent, outbox) | Done; real WhatsApp/SMS/email need credentials |
+| 14 | Marketing (segments, campaigns, consent, outbox, guest Web Push) | Done; real WhatsApp/SMS/email need credentials |
 | 15 | Analytics (host, owner, reservation, guest, table) | Done, tested |
 | 16 | Backup (scheduled, verified, retention, restore) | Done, tested (incl. least-privilege restore) |
 | 17 | Update Center (signed packages, migrations, rollback) | Done, tested |
 | 18 | Security hardening | Done |
-| 19 | Testing (unit, integration, sync, conflict, e2e offline, update) | Done — 69 tests + browser e2e |
+| 19 | Testing (unit, integration, sync, conflict, e2e offline, update) | Done — 80 tests + 2 browser e2e scenarios |
 | 20 | Deployment (Docker, Windows installer, Server Manager) | Written; Windows scripts not yet run on Windows, Docker image not yet built |
 
 `docs/STATUS.md` lists, item by item, what is verified, what still has to be proven in a real environment, and what
-is not implemented (online payment gateway, guest push notifications, server-side PDF).
+is not implemented (online payment gateway).

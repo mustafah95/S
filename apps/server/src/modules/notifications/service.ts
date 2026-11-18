@@ -28,7 +28,7 @@ function contactFor(guest: Pick<Guest, 'whatsapp' | 'phone' | 'phoneNormalized' 
 
 async function enabledChannels(): Promise<string[]> {
   const n = await getSetting('notifications');
-  const order = [n.preferredTransactionalChannel, 'whatsapp', 'sms', 'email'];
+  const order = [n.preferredTransactionalChannel, 'whatsapp', 'sms', 'email', 'push'];
   return [...new Set(order)].filter((c) => n.channelsEnabled[c as keyof typeof n.channelsEnabled]);
 }
 
@@ -45,6 +45,11 @@ export function templateParams(body: string, vars: Record<string, string | numbe
   return [...body.matchAll(/\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g)].map((m) => String(vars[m[1]!] ?? ''));
 }
 
+async function hasPushSubscription(tx: DbOrTx, guestId: string): Promise<boolean> {
+  const rows = await q(tx, sql`SELECT 1 FROM guest_push_subscriptions WHERE guest_id = ${guestId} AND revoked_at IS NULL LIMIT 1`);
+  return rows.length > 0;
+}
+
 export interface QueueOptions {
   guest: Guest;
   key: TemplateKey;
@@ -56,6 +61,8 @@ export interface QueueOptions {
   branchId?: string | null;
   dedupeKey?: string;
   language?: string;
+  /** Web Push: page opened from the notification (path on this server). */
+  pushUrl?: string;
   /** Override template body/subject (campaigns). */
   body?: string;
   subject?: string | null;
@@ -74,9 +81,17 @@ export async function queueGuestMessage(tx: DbOrTx, o: QueueOptions): Promise<{ 
   const branding = await getSetting('branding');
   const language = o.language && o.language !== 'guest' ? o.language : o.guest.preferredLanguage ?? general.defaultLanguage;
   const channels = o.channel ? [o.channel] : await enabledChannels();
-  const channel = channels.find((c) => contactFor(o.guest, c));
+  let channel: string | undefined;
+  for (const c of channels) {
+    // Push goes to the guest's subscribed browsers; the recipient is the guest id.
+    const reachable = c === 'push' ? await hasPushSubscription(tx, o.guest.id) : !!contactFor(o.guest, c);
+    if (reachable) {
+      channel = c;
+      break;
+    }
+  }
   if (!channel) return { skipped: o.channel ? `no_${o.channel}_contact` : 'no_channel_or_contact' };
-  const to = contactFor(o.guest, channel)!;
+  const to = channel === 'push' ? o.guest.id : contactFor(o.guest, channel)!;
   const tpl = o.body ? null : await loadTemplate(tx, o.key, channel, language);
   const body = o.body ?? tpl?.body;
   if (!body) return { skipped: 'no_template' };
@@ -95,7 +110,7 @@ export async function queueGuestMessage(tx: DbOrTx, o: QueueOptions): Promise<{ 
     sql`INSERT INTO notification_outbox (channel, recipient, template_key, language, subject, body, payload, guest_id, reservation_id,
                                          campaign_id, branch_id, is_marketing, dedupe_key)
         VALUES (${channel}, ${to}, ${o.key}, ${language}, ${subject ? renderTemplate(subject, vars) : null}, ${rendered},
-                ${JSON.stringify({ providerTemplateName, templateParams: templateParams(body, vars) })}::jsonb,
+                ${JSON.stringify({ providerTemplateName, templateParams: templateParams(body, vars), ...(channel === 'push' ? { push: { url: o.pushUrl ?? '/book', tag: o.reservationId ?? o.key } } : {}) })}::jsonb,
                 ${o.guest.id}, ${o.reservationId ?? null}, ${o.campaignId ?? null}, ${o.branchId ?? null}, ${o.isMarketing ?? false},
                 ${o.dedupeKey ?? null})
         ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING
@@ -124,6 +139,7 @@ export async function queueReservationMessage(tx: DbOrTx, key: TemplateKey, r: R
     reservationId: r.id,
     branchId: r.branchId,
     dedupeKey: `${key}:${r.id}`,
+    pushUrl: key === 'feedback_request' ? `/feedback/${r.feedbackToken}` : `/r/${r.code}?t=${r.confirmationToken}`,
     vars: {
       branch: lang === 'ar' && branch?.nameAr ? branch.nameAr : branch?.name,
       date: r.businessDate as unknown as string,
@@ -152,7 +168,7 @@ export async function processOutbox(limit = 25): Promise<{ sent: number; failed:
     subject: string | null;
     body: string;
     language: string | null;
-    payload: { providerTemplateName?: string | null; templateParams?: string[] };
+    payload: { providerTemplateName?: string | null; templateParams?: string[]; push?: { url?: string; tag?: string } };
     attempts: number;
     campaign_id: string | null;
     guest_id: string | null;
@@ -181,6 +197,7 @@ export async function processOutbox(limit = 25): Promise<{ sent: number; failed:
         language: m.language ?? 'ar',
         providerTemplateName: m.payload?.providerTemplateName,
         templateParams: m.payload?.templateParams,
+        push: m.payload?.push,
       });
       await db.execute(sql`UPDATE notification_outbox SET status = 'sent', sent_at = now(), provider_message_id = ${r.providerMessageId ?? null}, last_error = NULL WHERE id = ${m.id}`);
       if (m.campaign_id) await db.execute(sql`UPDATE campaign_recipients SET status = 'sent' WHERE outbox_id = ${m.id}`);

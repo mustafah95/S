@@ -5,11 +5,15 @@ import { addDays } from '@sofia/shared';
 import { useApp } from '../../app/context';
 import { del, download, errorMessage, get, post } from '../../lib/api';
 import { dateTime } from '../../lib/format';
+import { currentLang } from '../../i18n';
 import { Button, Card, Check, Empty, Field, Input, Select, useToast } from '../../ui/kit';
 import { useBranchContext, useOnline } from '../common';
 
-interface Dataset { key: string; label: string; columns: { key: string; label: string; type: string }[] }
-interface Result { headers: { key: string; label: string }[]; rows: Record<string, unknown>[]; dataset: string }
+interface Dataset { key: string; label: string; labelAr?: string; columns: { key: string; label: string; labelAr?: string; type: string }[] }
+interface Result { headers: { key: string; label: string; labelAr?: string }[]; rows: Record<string, unknown>[]; dataset: string; datasetAr?: string }
+
+/** Column and dataset names in the interface language (the server provides English and Arabic). */
+const localise = <T extends { label: string; labelAr?: string }>(x: T): T => (currentLang() === 'ar' && x.labelAr ? { ...x, label: x.labelAr } : x);
 
 const fmt = (v: unknown) => (v === null || v === undefined ? '' : typeof v === 'number' ? v.toLocaleString() : typeof v === 'boolean' ? (v ? '✓' : '') : String(v).replace(/T.*Z$/, ''));
 
@@ -20,7 +24,11 @@ export default function ReportsPage() {
   const qc = useQueryClient();
   const { can, settings } = useApp();
   const { today } = useBranchContext();
-  const datasets = useQuery({ queryKey: ['datasets'], queryFn: () => get<Dataset[]>('/api/v1/reports/datasets'), enabled: online });
+  const datasets = useQuery({
+    queryKey: ['datasets', currentLang()],
+    queryFn: async () => (await get<Dataset[]>('/api/v1/reports/datasets')).map((d) => ({ ...localise(d), columns: d.columns.map(localise) })),
+    enabled: online,
+  });
   const saved = useQuery({ queryKey: ['saved-reports'], queryFn: () => get<{ id: string; name: string; definition: Record<string, unknown> }[]>('/api/v1/reports/saved'), enabled: online });
   const [def, setDef] = useState({ dataset: 'reservations', columns: [] as string[], groupBy: '' as string, agg: '' as string, from: addDays(today, -30), to: today, filterCol: '', filterVal: '' });
   const [result, setResult] = useState<Result | null>(null);
@@ -45,7 +53,8 @@ export default function ReportsPage() {
   const run = async () => {
     setBusy(true);
     try {
-      setResult(await post<Result>('/api/v1/reports/run', body()));
+      const r = await post<Result>('/api/v1/reports/run', body());
+      setResult({ ...r, dataset: currentLang() === 'ar' && r.datasetAr ? r.datasetAr : r.dataset, headers: r.headers.map(localise) });
     } catch (e) {
       toast(errorMessage(e, t), 'error');
     } finally {
@@ -87,7 +96,8 @@ export default function ReportsPage() {
               <>
                 <Button icon="download" onClick={() => void download('POST', '/api/v1/reports/export', { ...body(), format: 'xlsx' })}>Excel</Button>
                 <Button icon="download" onClick={() => void download('POST', '/api/v1/reports/export', { ...body(), format: 'csv' })}>CSV</Button>
-                <Button icon="print" onClick={() => window.print()}>PDF</Button>
+                <Button icon="download" onClick={() => void download('POST', '/api/v1/reports/export', { ...body(), format: 'pdf', language: currentLang() })}>PDF</Button>
+                <Button icon="print" variant="ghost" onClick={() => window.print()} aria-label={t('common.print')} />
               </>
             )}
             {result && <Button variant="ghost" onClick={async () => { const name = prompt(t('reports.saveAs')); if (name) { await post('/api/v1/reports/saved', { name, definition: body() }); void qc.invalidateQueries({ queryKey: ['saved-reports'] }); } }}>{t('reports.saveAs')}</Button>}

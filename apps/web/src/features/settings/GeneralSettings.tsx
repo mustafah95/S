@@ -162,7 +162,8 @@ export function NotificationsTab() {
       <div className="row">
         {Object.keys(v.channelsEnabled).map((c) => <Check key={c} label={c} checked={v.channelsEnabled[c]} onChange={(x) => setV({ ...v, channelsEnabled: { ...v.channelsEnabled, [c]: x } })} />)}
       </div>
-      <Field label="Transactional channel"><Select value={v.preferredTransactionalChannel} onChange={(e) => setV({ ...v, preferredTransactionalChannel: e.target.value })} options={['whatsapp', 'sms', 'email'].map((c) => ({ value: c, label: c }))} /></Field>
+      <Field label="Transactional channel"><Select value={v.preferredTransactionalChannel} onChange={(e) => setV({ ...v, preferredTransactionalChannel: e.target.value })} options={['whatsapp', 'sms', 'email', 'push'].map((c) => ({ value: c, label: c }))} /></Field>
+      <p className="small muted">{t('settings.pushHint')}</p>
       <div className="row">
         {['sendConfirmation', 'sendReminder', 'sendFeedbackRequest', 'sendBirthday', 'vipArrivalAlert'].map((k) => <Check key={k} label={k.replace(/([A-Z])/g, ' $1').toLowerCase()} checked={v[k]} onChange={(x) => setV({ ...v, [k]: x })} />)}
       </div>

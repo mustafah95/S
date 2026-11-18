@@ -7,6 +7,7 @@ import { currentLang, setLanguage } from '../i18n';
 import { dateLabel, money } from '../lib/format';
 import { Button, Check, Field, Input, Select, Textarea } from '../ui/kit';
 import { Icon } from '../ui/icons';
+import { PushOptIn } from './PushOptIn';
 
 interface Branding { restaurantName: string; restaurantNameAr: string; logoUrl: string | null; colors: Record<string, string>; contact: Record<string, string> }
 interface PublicBranch { id: string; code: string; name: string; nameAr: string | null; address: string | null; phone: string | null; today: string; maxDate: string; maxPartySize: number; cancellationPolicy: { en: string; ar: string }; deposit: { minPartySize: number; amountPerGuest: number; currency: string } | null; areas: { id: string; name: string; nameAr: string | null }[] }
@@ -64,6 +65,7 @@ function ConfirmationView({ c, onChange }: { c: Confirmation; onChange: (c: Conf
         {c.deposit && (<><dt>{t('booking.deposit')}</dt><dd>{money(c.deposit.amount, c.deposit.currency)} · {ar ? c.deposit.instructions.ar : c.deposit.instructions.en}</dd></>)}
       </dl>
       <div className="small muted" style={{ textAlign: 'start' }}><strong>{t('booking.policy')}:</strong> {ar ? c.policy.ar : c.policy.en}</div>
+      {!cancelled && <PushOptIn code={c.code} token={c.token} manageUrl={c.manageUrl} />}
       {!cancelled && (
         <div className="row" style={{ justifyContent: 'center' }}>
           <a className="btn" href={`/api/v1/public/reservations/${c.code}/calendar.ics?t=${c.token}`}><Icon name="calendar" />{t('booking.addCalendar')}</a>

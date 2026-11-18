@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { escapeHtml } from '@sofia/shared';
 import { getSecrets, getSetting } from '../lib/settings.js';
+import { sendGuestPush } from './push.js';
 
 /**
  * Outbound messaging adapters. The core never talks to a provider directly — it writes to the notification
@@ -17,6 +18,8 @@ export interface OutboundMessage {
   providerTemplateName?: string | null;
   /** Ordered template parameters (values of the {{placeholders}} in the body, in order of appearance). */
   templateParams?: string[];
+  /** Web Push: page opened when the notification is tapped, and a tag that replaces older notifications. */
+  push?: { url?: string; tag?: string };
 }
 
 export interface SendResult {
@@ -161,10 +164,19 @@ export const smsAdapter: MessageAdapter = {
 export const pushAdapter: MessageAdapter = {
   channel: 'push',
   async unavailableReason() {
-    return 'Guest push notifications require a configured web-push provider (not part of this release)';
+    const n = await getSetting('notifications');
+    if (!n.channelsEnabled.push) return 'Push notifications are disabled in Settings → Notifications';
+    return null;
   },
-  async send() {
-    throw new PermanentSendError('Push channel not configured');
+  /** `to` is the guest id: the message goes to every browser the guest subscribed (see integrations/push.ts). */
+  async send(msg) {
+    const branding = await getSetting('branding');
+    const title = msg.subject || (msg.language === 'ar' && branding.restaurantNameAr ? branding.restaurantNameAr : branding.restaurantName);
+    const r = await sendGuestPush(msg.to, { title, body: msg.body, url: msg.push?.url, tag: msg.push?.tag, lang: msg.language });
+    if (r.delivered) return { providerMessageId: `web-push ${r.delivered}/${r.total}` };
+    if (r.transientErrors.length) throw new Error(`Push service temporarily unavailable: ${r.transientErrors.join('; ')}`);
+    if (!r.total) throw new PermanentSendError('The guest has no browser subscribed to notifications');
+    throw new PermanentSendError(`No subscription accepted the notification${r.permanentErrors.length ? `: ${r.permanentErrors.join('; ')}` : ' (unsubscribed)'}`);
   },
 };
 

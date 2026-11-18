@@ -27,3 +27,5 @@ process.env.SOFIA_EMBEDDED_WORKER = 'false';
 process.env.SOFIA_TEST_DB_NAME = name;
 process.env.SOFIA_LOGIN_RATE_LIMIT = '1000';
 process.env.SOFIA_RATE_LIMIT_MAX = '100000';
+// Local stand-in for a browser push service (see push.test.ts).
+process.env.SOFIA_PUSH_EXTRA_HOSTS = '127.0.0.1';

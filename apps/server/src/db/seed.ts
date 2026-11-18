@@ -137,12 +137,65 @@ const T: Record<string, { en: string; ar: string; subjectEn?: string; subjectAr?
   },
 };
 
-const DEFAULT_TEMPLATES: TemplateSeed[] = Object.entries(T).flatMap(([key, t]) =>
-  (['whatsapp', 'sms', 'email'] as const).flatMap((channel) => [
-    { key, channel, language: 'en' as const, subject: channel === 'email' ? t.subjectEn ?? key : undefined, body: t.en },
-    { key, channel, language: 'ar' as const, subject: channel === 'email' ? t.subjectAr ?? key : undefined, body: t.ar },
+/** Web Push: short title + body; the link is the notification's tap target, so it is not repeated in the text. */
+const PUSH: Record<string, { titleEn: string; titleAr: string; en: string; ar: string }> = {
+  reservation_confirmation: {
+    titleEn: 'Reservation confirmed — {{restaurant}}',
+    titleAr: 'تم تأكيد حجزك — {{restaurant}}',
+    en: '{{date}} at {{time}} · {{party_size}} guests · {{code}}',
+    ar: '{{date}} الساعة {{time}} · {{party_size}} أشخاص · {{code}}',
+  },
+  reservation_reminder: {
+    titleEn: 'See you today at {{time}}',
+    titleAr: 'نراك اليوم الساعة {{time}}',
+    en: '{{restaurant}} · {{party_size}} guests · {{code}}',
+    ar: '{{restaurant}} · {{party_size}} أشخاص · {{code}}',
+  },
+  reservation_cancelled: {
+    titleEn: 'Reservation cancelled',
+    titleAr: 'تم إلغاء الحجز',
+    en: 'Your reservation {{code}} on {{date}} at {{time}} was cancelled.',
+    ar: 'تم إلغاء حجزك رقم {{code}} بتاريخ {{date}} الساعة {{time}}.',
+  },
+  reservation_rescheduled: {
+    titleEn: 'Reservation moved',
+    titleAr: 'تم تعديل موعد الحجز',
+    en: 'New time: {{date}} at {{time}} · {{party_size}} guests · {{code}}',
+    ar: 'الموعد الجديد: {{date}} الساعة {{time}} · {{party_size}} أشخاص · {{code}}',
+  },
+  waitlist_ready: {
+    titleEn: 'Your table is ready',
+    titleAr: 'طاولتك جاهزة',
+    en: 'Please come to the host stand within 10 minutes.',
+    ar: 'يرجى التوجه إلى مكتب الاستقبال خلال 10 دقائق.',
+  },
+  birthday: {
+    titleEn: 'Happy birthday, {{guest_name}}!',
+    titleAr: 'عيد ميلاد سعيد {{guest_name}}!',
+    en: 'A special treat awaits you at {{restaurant}} this month.',
+    ar: 'مفاجأة خاصة بانتظارك في {{restaurant}} هذا الشهر.',
+  },
+  feedback_request: {
+    titleEn: 'How was your visit?',
+    titleAr: 'كيف كانت زيارتك؟',
+    en: 'Tap to rate your evening at {{restaurant}}.',
+    ar: 'اضغط لتقييم أمسيتك في {{restaurant}}.',
+  },
+  marketing: { titleEn: '{{restaurant}}', titleAr: '{{restaurant}}', en: '{{message}}', ar: '{{message}}' },
+};
+
+const DEFAULT_TEMPLATES: TemplateSeed[] = [
+  ...Object.entries(T).flatMap(([key, t]) =>
+    (['whatsapp', 'sms', 'email'] as const).flatMap((channel) => [
+      { key, channel, language: 'en' as const, subject: channel === 'email' ? t.subjectEn ?? key : undefined, body: t.en },
+      { key, channel, language: 'ar' as const, subject: channel === 'email' ? t.subjectAr ?? key : undefined, body: t.ar },
+    ]),
+  ),
+  ...Object.entries(PUSH).flatMap(([key, t]) => [
+    { key, channel: 'push', language: 'en' as const, subject: t.titleEn, body: t.en },
+    { key, channel: 'push', language: 'ar' as const, subject: t.titleAr, body: t.ar },
   ]),
-);
+];
 
 const SYSTEM_SEGMENTS = [
   { key: 'vip', name: 'VIP guests', nameAr: 'كبار الضيوف', description: 'VIP level gold or above', rules: [{ field: 'vip_level', op: 'in', value: ['gold', 'platinum', 'vip', 'vvip'] }] },

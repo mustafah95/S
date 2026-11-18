@@ -1,0 +1,14 @@
+{
+  "name": "Sofia's Resto-Lounge",
+  "short_name": "Sofia's",
+  "description": "Your reservation at Sofia's Resto-Lounge",
+  "display": "standalone",
+  "scope": "/",
+  "background_color": "#3E0B12",
+  "theme_color": "#3E0B12",
+  "icons": [
+    { "src": "/brand/sofia-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/brand/sofia-icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/brand/sofia-icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

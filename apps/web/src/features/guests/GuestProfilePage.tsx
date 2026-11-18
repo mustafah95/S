@@ -29,6 +29,7 @@ interface Profile360 {
   marketing: Record<string, any>[];
   occasions: Record<string, any>[];
   notes: Record<string, any>[];
+  push?: { devices: number; lastDeliveredAt: string | null };
 }
 
 export function GuestProfilePage() {
@@ -118,6 +119,7 @@ export function GuestProfilePage() {
               <dt>{t('guest.dietary')}</dt><dd>{((guest.dietary as string[]) ?? []).join(', ') || '—'}</dd>
               <dt>{t('guest.preferences')}</dt><dd>{Object.entries((guest.preferences as Record<string, string>) ?? {}).map(([k, v]) => `${k}: ${v}`).join(' · ') || '—'}</dd>
               <dt>{t('guest.consent')}</dt><dd>{guest.marketingConsent ? <Badge tone="green">✓ {Object.entries((guest.consentChannels as Record<string, boolean>) ?? {}).filter(([, v]) => v).map(([k]) => k).join(', ')}</Badge> : <Badge>✗</Badge>}</dd>
+              <dt>{t('guest.pushDevices')}</dt><dd>{p?.push?.devices ? <Badge tone="green">{p.push.devices}</Badge> : '—'}</dd>
             </dl>
             {guest.notes && <><div className="divider" /><p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{guest.notes}</p></>}
           </Card>

@@ -14,7 +14,8 @@ import {
   zIsoDate,
   zTime,
 } from '@sofia/shared';
-import { getDb, q1, schema, sql } from '../db/pool.js';
+import { getDb, q, q1, schema, sql } from '../db/pool.js';
+import { isAllowedPushEndpoint, validSubscriptionKeys, vapidKeys } from '../integrations/push.js';
 import { audit } from '../lib/audit.js';
 import { systemContext } from '../lib/context.js';
 import { hmacSha256, safeEqual } from '../lib/crypto.js';
@@ -248,6 +249,77 @@ export async function registerPublicRoutes(app: FastifyInstance): Promise<void> 
       await audit(tx, systemContext('opt-out'), { action: 'guest.opt_out', entityType: 'guest', entityId: g.id, meta: { via: 'link' } });
     });
     return { ok: true };
+  });
+
+  // Web Push for guests ----------------------------------------------------------------------------------------
+  const pushSubscriptionSchema = z.object({
+    endpoint: z.string().url().max(2000),
+    keys: z.object({ p256dh: z.string().min(80).max(200), auth: z.string().min(16).max(100) }),
+  });
+  const PUSH_LIMIT = { max: 10, timeWindow: '1 minute' };
+
+  defineRoute(app, { method: 'GET', url: '/api/v1/public/push/config', summary: 'Whether guests can subscribe to notifications, and the VAPID public key', tags: ['Public', 'Push'], auth: 'none', rateLimit: PUBLIC_LIMIT }, async () => {
+    const n = await getSetting('notifications');
+    if (!n.channelsEnabled.push) return { enabled: false, publicKey: null };
+    return { enabled: true, publicKey: (await vapidKeys()).publicKey };
+  });
+
+  defineRoute(app, { method: 'POST', url: '/api/v1/public/push/subscribe', summary: 'Guest subscribes this browser to notifications about a reservation (optionally offers)', tags: ['Public', 'Push'], auth: 'none', skipCsrf: true, rateLimit: PUSH_LIMIT,
+    body: z.object({ code: z.string().max(20), t: z.string().max(80), subscription: pushSubscriptionSchema, offers: z.boolean().default(false), language: z.enum(['ar', 'en']).optional() }) }, async ({ body, req }) => {
+    const code = body.code.toUpperCase();
+    await requireToken(code, body.t);
+    if (!(await getSetting('notifications')).channelsEnabled.push) throw unprocessable('push_disabled', 'Notifications are not enabled by the restaurant');
+    const { endpoint, keys } = body.subscription;
+    if (!isAllowedPushEndpoint(endpoint)) throw unprocessable('push_endpoint_not_allowed', 'This browser push service is not supported');
+    if (!validSubscriptionKeys(keys.p256dh, keys.auth)) throw unprocessable('push_keys_invalid', 'Invalid subscription keys');
+    const r = await q1<{ id: string; guest_id: string | null }>(db, sql`SELECT r.id, r.guest_id FROM reservations r JOIN guests g ON g.id = r.guest_id
+                                                                     WHERE r.code = ${code} AND g.anonymized_at IS NULL AND g.deleted_at IS NULL`);
+    if (!r?.guest_id) throw notFound('Reservation');
+    await db.transaction(async (tx) => {
+      const ctx = { ...systemContext('guest-push'), ip: req.ip, userAgent: req.headers['user-agent'] };
+      await tx.execute(sql`INSERT INTO guest_push_subscriptions (guest_id, endpoint, public_key, auth_secret, language, user_agent, reservation_id)
+                           VALUES (${r.guest_id}, ${endpoint}, ${keys.p256dh}, ${keys.auth}, ${body.language ?? null}, ${String(req.headers['user-agent'] ?? '').slice(0, 300)}, ${r.id})
+                           ON CONFLICT (endpoint) DO UPDATE
+                             SET guest_id = EXCLUDED.guest_id, public_key = EXCLUDED.public_key, auth_secret = EXCLUDED.auth_secret, language = EXCLUDED.language,
+                                 user_agent = EXCLUDED.user_agent, reservation_id = EXCLUDED.reservation_id, revoked_at = NULL, revoke_reason = NULL,
+                                 failure_count = 0, last_error = NULL, updated_at = now()`);
+      await audit(tx, ctx, { action: 'guest.push_subscribe', entityType: 'guest', entityId: r.guest_id!, meta: { reservation: code, offers: body.offers } });
+      if (body.offers) {
+        // Explicit opt-in from the guest: marketing consent for the push channel only.
+        await tx.execute(sql`UPDATE guests SET marketing_consent = true, consent_channels = consent_channels || '{"push": true}'::jsonb,
+                                               opted_out_at = NULL, consent_updated_at = now()
+                             WHERE id = ${r.guest_id}`);
+        await audit(tx, ctx, { action: 'guest.consent_push_marketing', entityType: 'guest', entityId: r.guest_id!, meta: { via: 'confirmation_page' } });
+      }
+    });
+    return { subscribed: true, offers: body.offers };
+  });
+
+  defineRoute(app, { method: 'POST', url: '/api/v1/public/push/unsubscribe', summary: 'Guest turns notifications off for this browser', tags: ['Public', 'Push'], auth: 'none', skipCsrf: true, rateLimit: PUSH_LIMIT, body: z.object({ endpoint: z.string().max(2000) }) }, async ({ body }) => {
+    await db.transaction(async (tx) => {
+      const rows = await q<{ guest_id: string }>(tx, sql`UPDATE guest_push_subscriptions SET revoked_at = now(), revoke_reason = 'guest', updated_at = now()
+                                                         WHERE endpoint = ${body.endpoint} AND revoked_at IS NULL RETURNING guest_id`);
+      for (const row of rows) {
+        // No browser left: push marketing consent ends with the last subscription.
+        await tx.execute(sql`UPDATE guests SET consent_channels = consent_channels || '{"push": false}'::jsonb, consent_updated_at = now()
+                             WHERE id = ${row.guest_id} AND (consent_channels->>'push')::boolean IS TRUE
+                               AND NOT EXISTS (SELECT 1 FROM guest_push_subscriptions s WHERE s.guest_id = ${row.guest_id} AND s.revoked_at IS NULL)`);
+        await audit(tx, systemContext('guest-push'), { action: 'guest.push_unsubscribe', entityType: 'guest', entityId: row.guest_id });
+      }
+    });
+    return { ok: true };
+  });
+
+  defineRoute(app, { method: 'POST', url: '/api/v1/public/push/renew', summary: 'Browser replaced its push subscription (service worker pushsubscriptionchange)', tags: ['Public', 'Push'], auth: 'none', skipCsrf: true, rateLimit: PUSH_LIMIT, body: z.object({ oldEndpoint: z.string().max(2000), subscription: pushSubscriptionSchema }) }, async ({ body }) => {
+    const { endpoint, keys } = body.subscription;
+    if (!isAllowedPushEndpoint(endpoint) || !validSubscriptionKeys(keys.p256dh, keys.auth)) throw unprocessable('push_endpoint_not_allowed', 'Invalid subscription');
+    // Knowing the previous endpoint (a secret of that browser) is what authorises the change.
+    const rows = await q(db, sql`UPDATE guest_push_subscriptions SET endpoint = ${endpoint}, public_key = ${keys.p256dh}, auth_secret = ${keys.auth}, failure_count = 0,
+                                        last_error = NULL, updated_at = now()
+                                 WHERE endpoint = ${body.oldEndpoint} AND revoked_at IS NULL
+                                   AND NOT EXISTS (SELECT 1 FROM guest_push_subscriptions x WHERE x.endpoint = ${endpoint})
+                                 RETURNING id`);
+    return { renewed: rows.length > 0 };
   });
 
   // WhatsApp Business webhook (Meta): verification handshake + signed inbound events -------------------------
