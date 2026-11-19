@@ -7,7 +7,7 @@ import type { Rec } from '../../offline/db';
 import { useAreas, useCombos, useGuest, useGuestSearch, useReservationsAround, useTables } from '../../offline/hooks';
 import { createGuest, createReservation, updateReservation } from '../../offline/repo';
 import { Icon } from '../../ui/icons';
-import { Badge, Button, Check, Field, Input, Modal, Select, Textarea, VipBadge, useToast } from '../../ui/kit';
+import { Badge, Button, Check, Count, Field, Input, Modal, Select, Textarea, VipBadge, useToast } from '../../ui/kit';
 import { dayRange, localSlots, tableAvailability, useBranchContext, useOnline } from '../common';
 
 interface Props {
@@ -222,7 +222,7 @@ export function ReservationForm({ initial, defaultDate, defaultTableIds, default
                 );
               })}
             </div>
-            {chosen.length > 0 && partySize > cap.max && <span className="badge amber">{t('res.capacityWarn')} ({cap.max})</span>}
+            {chosen.length > 0 && partySize > cap.max && <span className="badge amber">{t('res.capacityWarn')} <Count n={cap.max} /></span>}
             {conflict && <span className="badge red">{t('res.conflictWarn')}</span>}
           </section>
         )}

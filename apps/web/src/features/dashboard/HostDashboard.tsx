@@ -8,7 +8,7 @@ import { db, type Rec } from '../../offline/db';
 import { useReservations, useTables, useWaitlist } from '../../offline/hooks';
 import { reservationAction } from '../../offline/repo';
 import { Icon } from '../../ui/icons';
-import { Badge, Button, Card, Empty, Stat, StatusBadge, VipBadge, useToast } from '../../ui/kit';
+import { Badge, Button, Card, Count, Empty, Stat, StatusBadge, VipBadge, useToast } from '../../ui/kit';
 import { useApp } from '../../app/context';
 import { useBranchContext } from '../common';
 
@@ -33,6 +33,7 @@ export function HostDashboard() {
   const vips = active.filter((r) => VIP_RANK[vipOf(r) ?? 'standard'] >= VIP_RANK.gold);
   const occasions = active.filter((r) => r.occasion);
   const review = live.filter((r) => r.requiresReview || r._local || r._error);
+  const noShows = live.filter((r) => r.status === 'no_show');
   const labels = new Map(tables.map((tb) => [tb.id, tb.label]));
 
   const act = async (r: Rec, action: 'check_in' | 'seat') => {
@@ -99,14 +100,14 @@ export function HostDashboard() {
         </Card>
         <div className="stack">
           {late.length > 0 && (
-            <Card title={<h3 style={{ color: 'var(--s-danger)' }}>{t('dash.late')} ({late.length})</h3>}>
+            <Card title={<h3 style={{ color: 'var(--s-danger)' }}>{t('dash.late')} <Count n={late.length} /></h3>}>
               {late.map((r) => <Row key={r.id} r={r} />)}
             </Card>
           )}
-          <Card title={`${t('dash.vip')} (${vips.length})`}>{vips.length ? vips.map((r) => <Row key={r.id} r={r} />) : <Empty />}</Card>
-          <Card title={`${t('dash.occasions')} (${occasions.length})`}>{occasions.length ? occasions.map((r) => <Row key={r.id} r={r} />) : <Empty />}</Card>
+          <Card title={t('dash.vip')} count={vips.length}>{vips.length ? vips.map((r) => <Row key={r.id} r={r} />) : <Empty />}</Card>
+          <Card title={t('dash.occasions')} count={occasions.length}>{occasions.length ? occasions.map((r) => <Row key={r.id} r={r} />) : <Empty />}</Card>
           {review.length > 0 && (
-            <Card title={`${t('dash.review')} (${review.length})`}>
+            <Card title={t('dash.review')} count={review.length}>
               {review.map((r) => (
                 <div key={r.id} className="list-item">
                   <Icon name="alert" style={{ color: 'var(--s-reserved)' }} />
@@ -116,8 +117,8 @@ export function HostDashboard() {
               ))}
             </Card>
           )}
-          <Card title={`${t('dash.noShows')} (${live.filter((r) => r.status === 'no_show').length})`}>
-            {live.filter((r) => r.status === 'no_show').map((r) => <Row key={r.id} r={r} />)}
+          <Card title={t('dash.noShows')} count={noShows.length}>
+            {noShows.map((r) => <Row key={r.id} r={r} />)}
           </Card>
         </div>
       </div>

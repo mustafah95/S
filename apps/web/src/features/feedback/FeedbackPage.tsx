@@ -5,7 +5,7 @@ import { COMPLAINT_CATEGORIES, COMPLAINT_SEVERITIES, COMPLAINT_STATUSES } from '
 import { useApp } from '../../app/context';
 import { errorMessage, get, patch, post } from '../../lib/api';
 import { dateTime, num } from '../../lib/format';
-import { Badge, Button, Card, Empty, Field, Input, Modal, Select, Stat, StatusBadge, Tabs, Textarea, useToast } from '../../ui/kit';
+import { Badge, Button, Card, Count, Empty, Field, Input, Modal, Select, Stat, StatusBadge, Tabs, Textarea, useToast } from '../../ui/kit';
 import { useOnline } from '../common';
 
 interface Complaint { id: string; category: string; severity: string; status: string; description: string; resolution: string | null; compensation: string | null; createdAt: string; firstName: string | null; lastName: string | null; reservationCode: string | null; branchName: string; employeeName: string | null }
@@ -37,7 +37,7 @@ export default function FeedbackPage() {
           <Stat label={t('fb.atmosphere')} value={s.atmosphere ? num(s.atmosphere, 2) : '—'} />
         </div>
       )}
-      <Tabs value={tab} onChange={setTab} tabs={[{ key: 'feedback', label: t('fb.feedback') }, { key: 'complaints', label: `${t('fb.complaints')} (${complaints.data?.filter((c) => ['open', 'in_progress'].includes(c.status)).length ?? 0})` }]} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ key: 'feedback', label: t('fb.feedback') }, { key: 'complaints', label: <>{t('fb.complaints')} <Count n={complaints.data?.filter((c) => ['open', 'in_progress'].includes(c.status)).length ?? 0} /></> }]} />
       {tab === 'feedback' ? (
         <Card flush>
           {fb.data?.items.length ? (

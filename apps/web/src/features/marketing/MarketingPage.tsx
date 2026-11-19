@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CHANNELS, SEGMENT_FIELDS, TEMPLATE_KEYS } from '@sofia/shared';
 import { useApp } from '../../app/context';
 import { errorMessage, get, post, put } from '../../lib/api';
-import { dateTime, money, num, pct } from '../../lib/format';
+import { dateTime, money, num, pct, withCount } from '../../lib/format';
 import { Badge, Button, Card, Confirm, Empty, Field, Input, Modal, Select, StatusBadge, Tabs, Textarea, useToast } from '../../ui/kit';
 import { useOnline } from '../common';
 
@@ -115,7 +115,7 @@ export default function MarketingPage() {
           <div className="stack">
             <Field label={t('common.name')}><Input value={newCampaign.name} onChange={(e) => setNewCampaign({ ...newCampaign, name: e.target.value })} /></Field>
             <div className="form-grid">
-              <Field label={t('mkt.audience')}><Select value={newCampaign.segmentKey} onChange={(e) => setNewCampaign({ ...newCampaign, segmentKey: e.target.value })} options={(segments.data ?? []).map((s) => ({ value: s.key, label: `${segName(s)} (${s.consentedSize})` }))} /></Field>
+              <Field label={t('mkt.audience')}><Select value={newCampaign.segmentKey} onChange={(e) => setNewCampaign({ ...newCampaign, segmentKey: e.target.value })} options={(segments.data ?? []).map((s) => ({ value: s.key, label: withCount(segName(s), s.consentedSize) }))} /></Field>
               <Field label={t('mkt.channel')}><Select value={newCampaign.channel} onChange={(e) => setNewCampaign({ ...newCampaign, channel: e.target.value })} options={CHANNELS.filter((c) => c !== 'push').map((c) => ({ value: c, label: c }))} /></Field>
               <Field label={t('common.language')}><Select value={newCampaign.language} onChange={(e) => setNewCampaign({ ...newCampaign, language: e.target.value })} options={[{ value: 'guest', label: '—' }, { value: 'ar', label: 'العربية' }, { value: 'en', label: 'English' }]} /></Field>
               <Field label={t('mkt.cost')}><Input type="number" min={0} value={newCampaign.cost} onChange={(e) => setNewCampaign({ ...newCampaign, cost: Number(e.target.value) })} /></Field>

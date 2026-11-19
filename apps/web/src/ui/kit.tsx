@@ -45,12 +45,32 @@ export function Check({ label, checked, onChange, disabled }: { label: ReactNode
   );
 }
 
-export function Card({ title, actions, children, className, flush }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; flush?: boolean }) {
+/**
+ * A count shown after a label, e.g. "VIP guests today (3)". Never build it into the translated string:
+ * it is isolated and forced left-to-right so the parentheses keep their order and shape inside Arabic
+ * text (the Arabic display font has "(" but no ")", so it cannot mirror them).
+ */
+export function Count({ n }: { n: number }) {
+  return (
+    <bdi className="count" dir="ltr">
+      ({n})
+    </bdi>
+  );
+}
+
+export function Card({ title, count, actions, children, className, flush }: { title?: ReactNode; count?: number; actions?: ReactNode; children: ReactNode; className?: string; flush?: boolean }) {
   return (
     <section className={['card', flush ? 'flush' : '', className].filter(Boolean).join(' ')}>
       {(title || actions) && (
         <div className="card-head">
-          {typeof title === 'string' ? <h3>{title}</h3> : title}
+          {typeof title === 'string' ? (
+            <h3>
+              {title}
+              {count !== undefined && <> <Count n={count} /></>}
+            </h3>
+          ) : (
+            title
+          )}
           {actions && <div className="row tight">{actions}</div>}
         </div>
       )}

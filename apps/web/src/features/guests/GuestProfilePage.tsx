@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
@@ -10,7 +10,7 @@ import { addGuestNote } from '../../offline/repo';
 import { syncEngine } from '../../offline/engine';
 import { ColumnChart } from '../../ui/charts';
 import { Icon } from '../../ui/icons';
-import { Badge, Button, Card, Confirm, Empty, Stat, StatusBadge, Tabs, Textarea, VipBadge, useToast } from '../../ui/kit';
+import { Badge, Button, Card, Confirm, Count, Empty, Stat, StatusBadge, Tabs, Textarea, VipBadge, useToast } from '../../ui/kit';
 import { useOnline } from '../common';
 import { GuestForm } from './GuestForm';
 
@@ -30,6 +30,17 @@ interface Profile360 {
   occasions: Record<string, any>[];
   notes: Record<string, any>[];
   push?: { devices: number; lastDeliveredAt: string | null };
+}
+
+/** "T2 (3), L1 (1)": each item is isolated so a Latin label and its count keep their order inside Arabic text. */
+function isolatedList(items: ReactNode[]) {
+  if (!items.length) return '—';
+  return items.map((item, i) => (
+    <Fragment key={i}>
+      {i > 0 && ', '}
+      <bdi>{item}</bdi>
+    </Fragment>
+  ));
 }
 
 export function GuestProfilePage() {
@@ -145,8 +156,8 @@ export function GuestProfilePage() {
             {p && (
               <Card title={t('guest.favorites')}>
                 <dl className="kv">
-                  <dt>{t('guest.favTables')}</dt><dd>{p.favorites.tables.map((x) => `${x.label} (${x.visits})`).join(', ') || '—'}</dd>
-                  <dt>{t('guest.favAreas')}</dt><dd>{p.favorites.areas.map((x) => `${x.name} (${x.visits})`).join(', ') || '—'}</dd>
+                  <dt>{t('guest.favTables')}</dt><dd>{isolatedList(p.favorites.tables.map((x) => <>{x.label} <Count n={x.visits} /></>))}</dd>
+                  <dt>{t('guest.favAreas')}</dt><dd>{isolatedList(p.favorites.areas.map((x) => <>{x.name} <Count n={x.visits} /></>))}</dd>
                   <dt>{t('guest.favItems')}</dt><dd>{p.favorites.items.map((x) => `${x.name} ×${num(x.quantity)}`).join(', ') || '—'}</dd>
                   <dt>{t('guest.favTimes')}</dt><dd>{p.favorites.hours.map((x) => `${String(x.hour).padStart(2, '0')}:00`).join(', ') || '—'} {p.favorites.weekdays.length ? `· ${p.favorites.weekdays.map((w) => weekdays[w.weekday]).join(', ')}` : ''}</dd>
                   <dt>{t('guest.favBranches')}</dt><dd>{p.favorites.branches.map((x) => x.name).join(', ') || '—'}</dd>

@@ -242,7 +242,7 @@ export function FloorPlanPage() {
             {combos.length ? combos.map((c) => <div key={c.id} className="list-item"><span className="grow">{c.name}</span><Badge>{c.minCapacity}–{c.maxCapacity}</Badge></div>) : <span className="muted small">—</span>}
           </Card>
           {waitlist.length > 0 && (
-            <Card title={`${t('dash.waitlist')} (${waitlist.length})`}>
+            <Card title={t('dash.waitlist')} count={waitlist.length}>
               {waitlist.slice(0, 6).map((w) => {
                 const suggestion = suggestWaitlistTable(w);
                 return (

@@ -13,6 +13,15 @@ export function num(n: number | null | undefined, digits = 0): string {
   return new Intl.NumberFormat(locale(), { maximumFractionDigits: digits }).format(n ?? 0);
 }
 
+/**
+ * "Label (n)" as plain text, for places that cannot hold a <Count> element (e.g. an <option>). The label is
+ * isolated (FSI…PDI) and the count forced left-to-right (LRI…PDI), so neither a Latin label nor the
+ * parentheses get re-ordered inside Arabic text.
+ */
+export function withCount(label: string, n: number): string {
+  return `\u2068${label}\u2069 \u2066(${n})\u2069`;
+}
+
 export function pct(n: number | null | undefined): string {
   return `${num(n, 1)}%`;
 }

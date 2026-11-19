@@ -44,6 +44,7 @@
 
   --font-body: 'IBM Plex Sans Arabic', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-display: 'Cormorant Garamond', 'Amiri', Georgia, serif;
+  --font-display-latin: 'Cormorant Garamond', Georgia, serif;
   --radius-sm: 6px;
   --radius: 10px;
   --radius-lg: 16px;
@@ -84,6 +85,15 @@ h3 {
   margin: 0;
   letter-spacing: 0.2px;
   color: var(--c-primary-dark);
+  /* Cormorant's default old-style figures make 0 look like "o" and 1 like "ı". */
+  font-variant-numeric: lining-nums tabular-nums;
+}
+/* Counts in headings ("… (3)", see <Count>): take the parentheses and digits from the Latin display face
+   in both languages. The Arabic display subset has only "(" and no digits, which mixes faces. */
+h1 .count,
+h2 .count,
+h3 .count {
+  font-family: var(--font-display-latin);
 }
 h1 {
   font-size: 30px;
@@ -108,8 +118,12 @@ textarea {
   outline: 2px solid var(--c-gold);
   outline-offset: 2px;
 }
-.num {
-  font-variant-numeric: tabular-nums;
+.num,
+.count {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.count {
+  white-space: nowrap;
 }
 .muted {
   color: var(--c-muted);
